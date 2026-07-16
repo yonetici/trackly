@@ -51,12 +51,15 @@ def process_file(file_path):
     print(f"Generated: {out_path} ({len(content)} -> {len(minified)} bytes)")
 
 def main():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    workspace_root = os.path.dirname(script_dir)
+
     targets = [
-        "trackly/admin/css/trackly-admin.css",
-        "trackly/admin/js/trackly-admin.js",
-        "trackly/public/css/trackly-public.css",
-        "trackly/public/js/trackly-public.js",
-        "trackly/public/js/trackly-tracker.js"
+        os.path.join(workspace_root, "trackly/admin/css/trackly-admin.css"),
+        os.path.join(workspace_root, "trackly/admin/js/trackly-admin.js"),
+        os.path.join(workspace_root, "trackly/public/css/trackly-public.css"),
+        os.path.join(workspace_root, "trackly/public/js/trackly-public.js"),
+        os.path.join(workspace_root, "trackly/public/js/trackly-tracker.js")
     ]
     
     for target in targets:
