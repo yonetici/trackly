@@ -1,0 +1,206 @@
+/**
+ * Gravity Analytics Click Tracker (Lightweight & GDPR/Consent Compliant)
+ * Loaded for all visitors. Captures click coordinates normalized to viewport percentages.
+ * Respects popular cookie consent plugins and features session-based sampling.
+ */
+(function() {
+	'use strict';
+
+	let clicksQueue = [];
+
+	document.addEventListener('DOMContentLoaded', function() {
+		// 1. Consent Check (GDPR/KVKK Compliance)
+		if ( ! hasConsent() ) {
+			return; // Abort immediately if consent is denied
+		}
+
+		// 2. Sampling Rate Evaluation (DB Table Bloat Protection)
+		if ( ! isSampled() ) {
+			return; // Abort if session is not sampled
+		}
+
+		initTracker();
+	});
+
+	/**
+	 * Precise Cookie Reader Helper
+	 */
+	function getCookie(name) {
+		const value = `; ${document.cookie}`;
+		const parts = value.split(`; ${name}=`);
+		if ( parts.length === 2 ) {
+			return parts.pop().split(';').shift();
+		}
+		return null;
+	}
+
+	/**
+	 * Verify Cookie Consent and Google Consent Mode flags
+	 */
+	function hasConsent() {
+		// A. Check Google Consent Mode v2 (if analytics storage is explicitly denied)
+		if ( window.google_tag_data && window.google_tag_data.ics && window.google_tag_data.ics.entries ) {
+			const storage = window.google_tag_data.ics.entries.analytics_storage;
+			if ( storage && ( storage.current === false || storage.current === 'denied' ) ) {
+				return false;
+			}
+		}
+
+		// B. Complianz Cookie Consent plugin check
+		const complianz = getCookie('complianz_consent_status');
+		if ( complianz && complianz !== 'allow' ) {
+			return false;
+		}
+
+		// C. GDPR Cookie Consent (CookieLawInfo) check
+		const cli = getCookie('viewed_cookie_policy');
+		if ( cli && cli !== 'yes' ) {
+			return false;
+		}
+
+		// D. Borlabs Cookie check (must contain 'statistics' permission)
+		const borlabs = getCookie('borlabs-cookie');
+		if ( borlabs && borlabs.indexOf('statistics') === -1 ) {
+			return false;
+		}
+
+		return true; // Default to true if no active consent plugin blocking is detected
+	}
+
+	/**
+	 * Evaluate session-based random sampling
+	 */
+	function isSampled() {
+		const rate = parseInt( window.gravityAnalyticsTrackerData.sampling_rate ) || 100;
+		if ( rate >= 100 ) {
+			return true;
+		}
+
+		let sampled = sessionStorage.getItem('gravity_is_sampled');
+		if ( sampled === null ) {
+			const rand = Math.floor( Math.random() * 100 ) + 1;
+			sampled = ( rand <= rate ) ? 'true' : 'false';
+			sessionStorage.setItem('gravity_is_sampled', sampled);
+		}
+
+		return sampled === 'true';
+	}
+
+	function initTracker() {
+		document.addEventListener('click', function(e) {
+			// Do not log clicks inside the admin floating bar
+			if ( e.target.closest('#gravity-stats-bar-wrapper') ) {
+				return;
+			}
+
+			// Do not log clicks when element selector mode is active
+			if ( window.gravitySelectorModeActive ) {
+				return;
+			}
+
+			const selector = getUniqueSelector(e.target);
+			const docWidth = Math.max(
+				document.documentElement.clientWidth,
+				document.body.scrollWidth,
+				document.documentElement.scrollWidth,
+				document.body.offsetWidth,
+				document.documentElement.offsetWidth
+			);
+			const docHeight = Math.max(
+				document.documentElement.clientHeight,
+				document.body.scrollHeight,
+				document.documentElement.scrollHeight,
+				document.body.offsetHeight,
+				document.documentElement.offsetHeight
+			);
+
+			const clickData = {
+				page_url: window.gravityAnalyticsTrackerData.page_url,
+				element_tag: e.target.tagName.toLowerCase(),
+				element_selector: selector,
+				click_x_pct: parseFloat(((e.pageX / docWidth) * 100).toFixed(2)),
+				click_y_pct: parseFloat(((e.pageY / docHeight) * 100).toFixed(2))
+			};
+
+			clicksQueue.push(clickData);
+
+			// Flush queue if it contains 3 or more clicks
+			if ( clicksQueue.length >= 3 ) {
+				flushClicks();
+			}
+		});
+
+		// Flush remaining clicks on page hide or exit
+		window.addEventListener('pagehide', flushClicks);
+		window.addEventListener('visibilitychange', function() {
+			if ( document.visibilityState === 'hidden' ) {
+				flushClicks();
+			}
+		});
+	}
+
+	function flushClicks() {
+		if ( clicksQueue.length === 0 ) {
+			return;
+		}
+
+		const batch = clicksQueue.slice();
+		clicksQueue = [];
+
+		batch.forEach(function(click) {
+			fetch(window.gravityAnalyticsTrackerData.rest_url + '/record-click', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(click),
+				keepalive: true
+			}).catch(function() {
+				// Fail silently
+			});
+		});
+	}
+
+	/**
+	 * Unique CSS Selector builder supporting SVG elements class names
+	 */
+	function getUniqueSelector(el) {
+		if ( ! ( el instanceof HTMLElement ) ) {
+			return '';
+		}
+		let path = [];
+		while ( el.nodeType === Node.ELEMENT_NODE ) {
+			let selector = el.nodeName.toLowerCase();
+			if ( el.id ) {
+				selector += '#' + el.id;
+				path.unshift(selector);
+				break;
+			} else {
+				let className = '';
+				if ( typeof el.className === 'string' ) {
+					className = el.className.trim();
+				} else if ( el.getAttribute ) {
+					className = ( el.getAttribute('class') || '' ).trim();
+				}
+
+				className = className.replace('.gravity-selector-hovered', '');
+				if ( className ) {
+					selector += '.' + className.replace(/\s+/g, '.');
+				}
+				
+				let sib = el, nth = 1;
+				while ( sib = sib.previousElementSibling ) {
+					if ( sib.nodeName.toLowerCase() === el.nodeName.toLowerCase() ) {
+						nth++;
+					}
+				}
+				if ( nth !== 1 ) {
+					selector += ':nth-of-type(' + nth + ')';
+				}
+			}
+			path.unshift(selector);
+			el = el.parentNode;
+		}
+		return path.join(' > ');
+	}
+})();
