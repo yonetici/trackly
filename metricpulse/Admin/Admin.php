@@ -156,6 +156,7 @@ class Admin {
 			'rest_nonce'  => wp_create_nonce( 'wp_rest' ),
 			'debug'       => defined( 'WP_DEBUG' ) && WP_DEBUG,
 			'state'       => Api::get_connection_state(),
+			'locale'      => str_replace( '_', '-', get_locale() ),
 			'i18n'        => array(
 				'noData'            => __( 'No data found.', 'metricpulse' ),
 				'loading'           => __( 'Loading...', 'metricpulse' ),
@@ -195,7 +196,7 @@ class Admin {
 			$creds_obj = json_decode( $credentials_raw, true );
 			if ( is_array( $creds_obj ) ) {
 				$creds_obj['private_key'] = '___TRACKLY_MASKED_KEY___';
-				$credentials = json_encode( $creds_obj, JSON_PRETTY_PRINT );
+				$credentials = wp_json_encode( $creds_obj, JSON_PRETTY_PRINT );
 			}
 		}
 		?>

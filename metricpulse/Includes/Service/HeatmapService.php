@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 namespace Trackly\Includes\Service;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * HeatmapService handles click telemetry aggregations and standard deviation anomaly detection.
  * Implemented using strict types and modern PHP constructor promotion.

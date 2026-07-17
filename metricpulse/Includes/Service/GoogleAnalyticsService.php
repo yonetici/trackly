@@ -6,6 +6,10 @@ namespace Trackly\Includes\Service;
 use Trackly\Includes\Exception\TracklyException;
 use WP_Error;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * GoogleAnalyticsService handles GA4 OAuth2 tokens, report executions, and credentials encryption.
  * Implemented using strict types and modern PHP constructor promotion.
@@ -139,6 +143,8 @@ class GoogleAnalyticsService {
 		}
 
 		if ( file_exists( '/etc/secrets/trackly.json' ) ) {
+			// Reading a local, server-operator-provided secrets file (not a remote URL); WP_Filesystem is unnecessary here.
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 			$file_val = file_get_contents( '/etc/secrets/trackly.json' );
 			if ( $file_val ) {
 				return $file_val;
@@ -211,13 +217,13 @@ class GoogleAnalyticsService {
 		}
 
 		// Generate JWT
-		$header = $this->base64url_encode( (string) json_encode( array(
+		$header = $this->base64url_encode( (string) wp_json_encode( array(
 			'alg' => 'RS256',
 			'typ' => 'JWT',
 		) ) );
 
 		$now = time();
-		$payload = $this->base64url_encode( (string) json_encode( array(
+		$payload = $this->base64url_encode( (string) wp_json_encode( array(
 			'iss'   => $creds['client_email'],
 			'scope' => 'https://www.googleapis.com/auth/analytics.readonly',
 			'aud'   => 'https://oauth2.googleapis.com/token',

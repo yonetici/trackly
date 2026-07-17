@@ -74,9 +74,18 @@ class Database {
 		try {
 			return self::get_repository()->log_click( $data );
 		} catch ( \Exception $e ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( '[Trackly] Click logging failure: ' . $e->getMessage() );
+			self::log_error( 'Click logging failure', $e );
 			return false;
+		}
+	}
+
+	/**
+	 * Log an internal error, but only when WP_DEBUG is enabled.
+	 */
+	private static function log_error( string $context, \Throwable $e ): void {
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( '[MetricPulse] ' . $context . ': ' . $e->getMessage() );
 		}
 	}
 
@@ -87,8 +96,7 @@ class Database {
 		try {
 			return self::get_repository()->get_clicks_for_page( $page_url );
 		} catch ( \Exception $e ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( '[Trackly] Click retrieval failure: ' . $e->getMessage() );
+			self::log_error( 'Click retrieval failure', $e );
 			return array();
 		}
 	}
@@ -149,8 +157,7 @@ class Database {
 		try {
 			self::get_repository()->daily_cleanup();
 		} catch ( \Exception $e ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( '[Trackly] Daily cleanup failure: ' . $e->getMessage() );
+			self::log_error( 'Daily cleanup failure', $e );
 		}
 	}
 }

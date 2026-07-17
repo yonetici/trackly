@@ -11,6 +11,9 @@
 	let realtimeSpark = null;
 	let realtimeInterval = null;
 
+	// Site locale (e.g. "tr-TR") for date formatting; falls back to the browser locale.
+	const LOCALE = (typeof tracklyData !== 'undefined' && tracklyData.locale) ? tracklyData.locale : undefined;
+
 	// Translatable strings with English fallbacks.
 	const I18N = (typeof tracklyData !== 'undefined' && tracklyData.i18n) ? tracklyData.i18n : {};
 	function t(key, fallback) {
@@ -265,7 +268,7 @@
 				const month = rawDate.substring(4, 6);
 				const day = rawDate.substring(6, 8);
 				const dateObj = new Date(year, month - 1, day);
-				const formattedDate = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+				const formattedDate = dateObj.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
 
 				categories.push(formattedDate);
 				viewsSeries.push(intOf(metric(row, 0)));

@@ -5,6 +5,10 @@ namespace Trackly\Includes\Repository;
 
 use Trackly\Includes\Exception\TracklyException;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * EventRepository handles custom database operations for click telemetry data.
  * Built with strict types and modern PHP constructor property promotion.

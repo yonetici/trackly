@@ -258,9 +258,23 @@
 	grid-template-columns: 1fr 1fr;
 }
 
+/* KPI grid: keep the 6 cards on even rows instead of the auto-fit "5 + orphan" wrap. */
+.trackly-kpi-grid {
+	grid-template-columns: repeat(6, 1fr);
+}
+
+@media (max-width: 1400px) {
+	.trackly-kpi-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
 @media (max-width: 768px) {
 	.trackly-grid.double {
 		grid-template-columns: 1fr;
+	}
+	.trackly-kpi-grid {
+		grid-template-columns: repeat(2, 1fr);
 	}
 }
 
