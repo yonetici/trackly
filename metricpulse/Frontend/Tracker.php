@@ -22,15 +22,44 @@ class Tracker {
 		$this->version = $version;
 	}
 
+	/**
+	 * Cache-busting asset version: the file's modification time, falling back to the plugin version.
+	 */
+	private function asset_version( $relative ) {
+		$file = TRACKLY_PATH . $relative;
+		$mtime = file_exists( $file ) ? filemtime( $file ) : false;
+		return $mtime ? (string) $mtime : $this->version;
+	}
+
 	public function init_hooks() {
 		// Enqueue scripts & styles
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_public_assets' ) );
 
+		// Flag pages viewed by dashboard users as non-cacheable EARLY, before output starts,
+		// so page-cache plugins (which check DONOTCACHEPAGE during generation) actually honor it.
+		add_action( 'template_redirect', array( $this, 'maybe_disable_cache_for_admins' ) );
+
 		// Render Floating Analytics Bar in footer
 		add_action( 'wp_footer', array( $this, 'render_floating_stats_bar' ) );
 
-		// Enqueue GA4 Custom event tags if any exist
-		add_action( 'wp_head', array( $this, 'inject_custom_ga4_events' ) );
+		// Inject GA4 custom event bindings in the footer (deferred; keeps <head> lean).
+		add_action( 'wp_footer', array( $this, 'inject_custom_ga4_events' ) );
+	}
+
+	/**
+	 * Disable full-page caching only for users who can see the live admin overlay.
+	 */
+	public function maybe_disable_cache_for_admins() {
+		if ( ! current_user_can( 'trackly_view_dashboard' ) && ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
 	}
 
 	/**
@@ -41,29 +70,32 @@ class Tracker {
 		global $wp;
 		$current_url = home_url( add_query_arg( array(), $wp->request ) );
 		$sampling_rate = get_option( 'trackly_sampling_rate', '100' );
-		$require_consent = get_option( 'trackly_require_consent', 'no' ) === 'yes';
+		// Default to strict opt-in ('yes') to match the registered setting default and the GDPR branding.
+		$require_consent = get_option( 'trackly_require_consent', 'yes' ) === 'yes';
 
 		// 1. Zero-Footprint vanilla tracking engine loaded dynamically for all visitors (Minified)
-		wp_enqueue_script( $this->plugin_name . '-tracker-js', TRACKLY_URL . 'Public/js/trackly-tracker.min.js', array(), $this->version, true );
+		wp_enqueue_script( $this->plugin_name . '-tracker-js', TRACKLY_URL . 'Public/js/trackly-tracker.min.js', array(), $this->asset_version( 'Public/js/trackly-tracker.min.js' ), true );
+		// No nonce: the /record-click endpoint authorizes anonymous writes by same-origin + rate limit,
+		// which (unlike a cached nonce) survives full-page caching. See Admin::check_public_click_permissions().
 		$tracker_data = array(
 			'rest_url'        => esc_url_raw( rest_url( 'trackly/v1' ) ),
 			'page_url'        => $current_url,
 			'sampling_rate'   => intval( $sampling_rate ), // Passes rate (e.g. 10, 25, 50, 100)
 			'require_consent' => $require_consent,
-			'nonce'           => wp_create_nonce( 'trackly_public_clicks' ),
 		);
 		wp_add_inline_script( $this->plugin_name . '-tracker-js', 'const tracklyTrackerData = ' . wp_json_encode( $tracker_data ) . ';', 'before' );
 
 		// 2. Load heavy admin panel JS/CSS ONLY for users with dashboard view capabilities (Core Web Vitals Optimisation, Minified)
 		if ( current_user_can( 'trackly_view_dashboard' ) || current_user_can( 'manage_options' ) ) {
-			wp_enqueue_style( $this->plugin_name . '-public-css', TRACKLY_URL . 'Public/css/trackly-public.min.css', array(), $this->version );
-			wp_enqueue_script( $this->plugin_name . '-public-js', TRACKLY_URL . 'Public/js/trackly-public.min.js', array( 'jquery' ), $this->version, true );
+			wp_enqueue_style( $this->plugin_name . '-public-css', TRACKLY_URL . 'Public/css/trackly-public.min.css', array(), $this->asset_version( 'Public/css/trackly-public.min.css' ) );
+			wp_enqueue_script( $this->plugin_name . '-public-js', TRACKLY_URL . 'Public/js/trackly-public.min.js', array( 'jquery' ), $this->asset_version( 'Public/js/trackly-public.min.js' ), true );
 
 			$public_data = array(
 				'rest_url'   => esc_url_raw( rest_url( 'trackly/v1' ) ),
 				'rest_nonce' => wp_create_nonce( 'wp_rest' ),
 				'page_url'   => $current_url,
 				'is_admin'   => 1,
+				'is_demo'    => \Trackly\Includes\Api::is_demo_mode() ? 1 : 0,
 				'admin_url'  => esc_url( admin_url( 'admin.php?page=' . $this->plugin_name ) ),
 			);
 			wp_add_inline_script( $this->plugin_name . '-public-js', 'const tracklyPublicData = ' . wp_json_encode( $public_data ) . ';', 'before' );
@@ -78,11 +110,9 @@ class Tracker {
 			return;
 		}
 
-		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
-			define( 'DONOTCACHEPAGE', true );
-		}
-		nocache_headers();
+		// Cache exclusion is handled earlier on template_redirect (see maybe_disable_cache_for_admins).
+
+		$is_demo = \Trackly\Includes\Api::is_demo_mode();
 
 		global $wp;
 		$current_path = wp_parse_url( home_url( add_query_arg( array(), $wp->request ) ), PHP_URL_PATH );
@@ -93,7 +123,7 @@ class Tracker {
 		?>
 		<div id="trackly-stats-bar-wrapper">
 			<!-- Floating Toggle Button -->
-			<button id="trackly-stats-toggle-btn" title="<?php esc_attr_e( 'Trackly', 'metricpulse' ); ?>">
+			<button id="trackly-stats-toggle-btn" title="<?php esc_attr_e( 'MetricPulse', 'metricpulse' ); ?>">
 				<span class="dashicons dashicons-chart-area"></span>
 			</button>
 
@@ -103,7 +133,10 @@ class Tracker {
 				<div class="trackly-panel-header">
 					<div class="trackly-panel-logo">
 						<span class="dashicons dashicons-chart-area"></span>
-						<h4><?php esc_html_e( 'Trackly', 'metricpulse' ); ?></h4>
+						<h4><?php esc_html_e( 'MetricPulse', 'metricpulse' ); ?></h4>
+						<?php if ( $is_demo ) : ?>
+							<span class="trackly-demo-tag"><?php esc_html_e( 'DEMO', 'metricpulse' ); ?></span>
+						<?php endif; ?>
 					</div>
 					<div class="trackly-panel-controls">
 						<button id="trackly-panel-minimize-btn" title="<?php esc_attr_e( 'Hide', 'metricpulse' ); ?>">
@@ -242,7 +275,14 @@ class Tracker {
 				if (!customEvents || !Array.isArray(customEvents)) return;
 
 				customEvents.forEach(function(item) {
-					document.querySelectorAll(item.selector).forEach(function(el) {
+					// Isolate each selector: one malformed selector must not abort the whole loop.
+					let nodes;
+					try {
+						nodes = document.querySelectorAll(item.selector);
+					} catch (e) {
+						return;
+					}
+					nodes.forEach(function(el) {
 						el.addEventListener('click', function() {
 							if (typeof gtag === 'function') {
 								gtag('event', item.event_name, {

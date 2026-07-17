@@ -11,18 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          tools: phpunit
+          tools: composer
 
       - name: Syntax Check (PHP Lint)
         run: |
-          find trackly -name "*.php" -exec php -l {} \;
+          find metricpulse -name "*.php" -exec php -l {} \;
+
+      - name: Install Dependencies
+        working-directory: metricpulse
+        run: composer install --no-interaction --prefer-dist
 
       - name: Run PHPUnit Tests
-        run: |
-          cd trackly && phpunit
+        working-directory: metricpulse
+        run: vendor/bin/phpunit

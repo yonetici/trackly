@@ -1,8 +1,7 @@
 /**
- * Trackly Analytics Premium Admin Styling
+ * MetricPulse Admin Styling
+ * Uses the system font stack (no remote Google Fonts request) for privacy and performance.
  */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-
 :root {
 	--trackly-primary: #8b5cf6;
 	--trackly-primary-hover: #7c3aed;
@@ -15,7 +14,7 @@
 	--trackly-text-muted: #64748b;
 	--trackly-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
 	--trackly-radius: 16px;
-	--trackly-font: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	--trackly-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 
 .trackly-admin-wrapper {
@@ -414,6 +413,7 @@
 .trackly-form-group input[type="text"],
 .trackly-form-group textarea,
 .trackly-form-group select {
+	box-sizing: border-box;
 	width: 100%;
 	max-width: 100%;
 	padding: 10px 14px;
@@ -421,12 +421,30 @@
 	border: 1px solid #cbd5e1;
 	background: #ffffff;
 	font-size: 14px;
+	line-height: 1.5;
 	transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .trackly-form-group select {
 	max-width: 25rem;
-	height: 2.5rem;
+	/* Let padding + line-height define the height so option text is never vertically clipped. */
+	height: auto;
+	min-height: 2.75rem;
+	cursor: pointer;
+	/* Custom dropdown caret (native arrow is removed for consistent cross-browser rendering). */
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2364748b' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 14px center;
+	padding-right: 40px;
+}
+
+.trackly-form-group select:focus {
+	border-color: var(--trackly-primary);
+	box-shadow: 0 0 0 3px var(--trackly-primary-glow);
+	outline: none;
 }
 
 .trackly-form-group input[type="text"]:focus,
@@ -448,6 +466,62 @@
 	font-size: 12px;
 	color: var(--trackly-text-muted);
 	line-height: 1.5;
+}
+
+/* Collapsible "How do I get this?" help block */
+.trackly-help {
+	margin-top: 12px;
+	max-width: 40rem;
+	border: 1px solid var(--trackly-card-border);
+	border-radius: 10px;
+	background: #f8fafc;
+	overflow: hidden;
+}
+.trackly-help > summary {
+	cursor: pointer;
+	padding: 10px 14px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--trackly-primary);
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	user-select: none;
+}
+.trackly-help > summary::-webkit-details-marker {
+	display: none;
+}
+.trackly-help > summary .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+.trackly-help[open] > summary {
+	border-bottom: 1px solid var(--trackly-card-border);
+}
+.trackly-help-body {
+	padding: 14px 18px;
+}
+.trackly-help-body ol {
+	margin: 0 0 8px 0;
+	padding-left: 20px;
+}
+.trackly-help-body li {
+	margin-bottom: 10px;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--trackly-text-main);
+}
+.trackly-help-body code {
+	background: #e2e8f0;
+	padding: 1px 6px;
+	border-radius: 4px;
+	font-size: 12px;
+}
+.trackly-help-body a {
+	color: var(--trackly-primary);
+	font-weight: 600;
 }
 
 /* Switch Button */

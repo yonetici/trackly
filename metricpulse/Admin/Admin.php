@@ -65,6 +65,12 @@ class Admin {
 			'default'           => 'yes',
 			'sanitize_callback' => 'sanitize_text_field',
 		) );
+		// Whether to delete all stored data (table + options) when the plugin is uninstalled.
+		register_setting( 'trackly_settings_group', 'trackly_delete_data', array(
+			'type'              => 'string',
+			'default'           => 'no',
+			'sanitize_callback' => 'sanitize_text_field',
+		) );
 	}
 
 	/**
@@ -109,14 +115,23 @@ class Admin {
 	 */
 	public function add_plugin_admin_menu() {
 		add_menu_page(
-			__( 'Trackly', 'metricpulse' ),
-			__( 'Trackly', 'metricpulse' ),
+			__( 'MetricPulse', 'metricpulse' ),
+			__( 'MetricPulse', 'metricpulse' ),
 			'manage_options',
 			$this->plugin_name,
 			array( $this, 'display_plugin_admin_page' ),
 			'dashicons-chart-area',
 			30
 		);
+	}
+
+	/**
+	 * Cache-busting asset version: the file's modification time, falling back to the plugin version.
+	 */
+	private function asset_version( string $relative ): string {
+		$file = TRACKLY_PATH . $relative;
+		$mtime = file_exists( $file ) ? filemtime( $file ) : false;
+		return $mtime ? (string) $mtime : $this->version;
 	}
 
 	/**
@@ -130,15 +145,27 @@ class Admin {
 		// Enqueue Localized ApexCharts (No longer loading from CDN)
 		wp_enqueue_script( 'apexcharts', TRACKLY_URL . 'Admin/js/vendor/apexcharts.min.js', array(), '3.41.0', true );
 
-		// Local Admin CSS & JS (Minified)
-		wp_enqueue_style( $this->plugin_name . '-admin-css', TRACKLY_URL . 'Admin/css/trackly-admin.min.css', array(), $this->version );
-		wp_enqueue_script( $this->plugin_name . '-admin-js', TRACKLY_URL . 'Admin/js/trackly-admin.min.js', array( 'jquery', 'apexcharts' ), $this->version, true );
+		// Local Admin CSS & JS (Minified). Versioned by file mtime so browsers always pick up
+		// updated assets instead of serving a stale copy cached under a fixed version string.
+		wp_enqueue_style( $this->plugin_name . '-admin-css', TRACKLY_URL . 'Admin/css/trackly-admin.min.css', array(), $this->asset_version( 'Admin/css/trackly-admin.min.css' ) );
+		wp_enqueue_script( $this->plugin_name . '-admin-js', TRACKLY_URL . 'Admin/js/trackly-admin.min.js', array( 'jquery', 'apexcharts' ), $this->asset_version( 'Admin/js/trackly-admin.min.js' ), true );
 
-		// Localize Script for REST API URL & Nonce
+		// Localize Script for REST API URL, Nonce, connection state & translatable UI strings
 		wp_localize_script( $this->plugin_name . '-admin-js', 'tracklyData', array(
-			'rest_url'   => esc_url_raw( rest_url( 'trackly/v1' ) ),
-			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
-			'debug'      => defined( 'WP_DEBUG' ) && WP_DEBUG,
+			'rest_url'    => esc_url_raw( rest_url( 'trackly/v1' ) ),
+			'rest_nonce'  => wp_create_nonce( 'wp_rest' ),
+			'debug'       => defined( 'WP_DEBUG' ) && WP_DEBUG,
+			'state'       => Api::get_connection_state(),
+			'i18n'        => array(
+				'noData'      => __( 'No data found.', 'metricpulse' ),
+				'loading'     => __( 'Loading...', 'metricpulse' ),
+				'unavailable' => __( 'N/A', 'metricpulse' ),
+				'pageviews'   => __( 'Pageviews', 'metricpulse' ),
+				'users'       => __( 'Users', 'metricpulse' ),
+				'desktop'     => __( 'Desktop', 'metricpulse' ),
+				'mobile'      => __( 'Mobile', 'metricpulse' ),
+				'tablet'      => __( 'Tablet', 'metricpulse' ),
+			),
 		) );
 	}
 
@@ -168,8 +195,6 @@ class Admin {
 				$credentials = json_encode( $creds_obj, JSON_PRETTY_PRINT );
 			}
 		}
-		$is_connected = ! empty( $property_id ) && ! empty( $credentials_encrypted );
-
 		?>
 		<div class="trackly-admin-wrapper">
 			<!-- Settings errors output added here (Fixes hidden validation errors QA bug) -->
@@ -179,18 +204,29 @@ class Admin {
 			<header class="trackly-header">
 				<div class="trackly-logo-area">
 					<span class="dashicons dashicons-chart-area trackly-logo-icon"></span>
-					<h1><?php esc_html_e( 'Trackly', 'metricpulse' ); ?> <span class="trackly-badge">v<?php echo esc_html( $this->version ); ?></span></h1>
+					<h1><?php esc_html_e( 'MetricPulse', 'metricpulse' ); ?> <span class="trackly-badge">v<?php echo esc_html( $this->version ); ?></span></h1>
 				</div>
 				<div class="trackly-status-indicator">
-					<?php if ( $demo_mode === 'yes' ) : ?>
+					<?php $connection_state = Api::get_connection_state(); ?>
+					<?php if ( 'demo' === $connection_state ) : ?>
 						<span class="trackly-status demo"><span class="dot"></span> <?php esc_html_e( 'Demo Mode Active', 'metricpulse' ); ?></span>
-					<?php elseif ( $is_connected ) : ?>
+					<?php elseif ( 'connected' === $connection_state ) : ?>
 						<span class="trackly-status connected"><span class="dot"></span> <?php esc_html_e( 'GA4 Connected', 'metricpulse' ); ?></span>
 					<?php else : ?>
-						<span class="trackly-status disconnected"><span class="dot"></span> <?php esc_html_e( 'GA4 Disconnected', 'metricpulse' ); ?></span>
+						<span class="trackly-status disconnected"><span class="dot"></span> <?php esc_html_e( 'GA4 Not Configured', 'metricpulse' ); ?></span>
 					<?php endif; ?>
 				</div>
 			</header>
+
+			<?php if ( 'misconfigured' === $connection_state ) : ?>
+				<div class="trackly-card trackly-latency-notice trackly-misconfigured-notice">
+					<span class="dashicons dashicons-warning trackly-notice-icon"></span>
+					<div class="trackly-notice-text">
+						<strong><?php esc_html_e( 'Google Analytics is not connected', 'metricpulse' ); ?></strong>
+						<p><?php esc_html_e( 'Demo Mode is off but no valid Property ID / Service Account JSON was found. Charts will show connection errors until you complete the settings or re-enable Demo Mode.', 'metricpulse' ); ?></p>
+					</div>
+				</div>
+			<?php endif; ?>
 
 			<!-- Tabs/Navigation -->
 			<div class="trackly-tabs">
@@ -352,6 +388,66 @@ class Admin {
 							<label for="trackly_credentials"><?php esc_html_e( 'Service Account JSON Key', 'metricpulse' ); ?></label>
 							<textarea id="trackly_credentials" name="trackly_credentials" rows="8" class="large-text code" placeholder='{"type": "service_account", ...}'><?php echo esc_textarea( $credentials ); ?></textarea>
 							<p class="description"><?php esc_html_e( 'Paste the contents of the Service Account JSON key file you created in the Google Cloud Console. Make sure to add this service account\'s email as a Viewer to your GA4 property.', 'metricpulse' ); ?></p>
+
+							<details class="trackly-help">
+								<summary><span class="dashicons dashicons-editor-help"></span> <?php esc_html_e( 'How do I get this JSON key? (step-by-step)', 'metricpulse' ); ?></summary>
+								<div class="trackly-help-body">
+									<ol>
+										<li>
+											<?php
+											printf(
+												/* translators: %s: Google Cloud Console link */
+												esc_html__( 'Open the %s and create a new project (or select an existing one).', 'metricpulse' ),
+												'<a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Google Cloud Console', 'metricpulse' ) . '</a>'
+											);
+											?>
+										</li>
+										<li>
+											<?php
+											printf(
+												/* translators: %s: API name */
+												esc_html__( 'Go to %1$s and enable the %2$s.', 'metricpulse' ),
+												'<strong>' . esc_html__( 'APIs &amp; Services → Library', 'metricpulse' ) . '</strong>',
+												'<strong>' . esc_html__( 'Google Analytics Data API', 'metricpulse' ) . '</strong>'
+											);
+											?>
+										</li>
+										<li>
+											<?php
+											printf(
+												/* translators: %s: menu path */
+												esc_html__( 'Go to %s → Create Service Account. Give it a name and click Done (no roles are required at the project level).', 'metricpulse' ),
+												'<strong>' . esc_html__( 'IAM &amp; Admin → Service Accounts', 'metricpulse' ) . '</strong>'
+											);
+											?>
+										</li>
+										<li>
+											<?php
+											printf(
+												/* translators: 1: Keys tab, 2: menu path */
+												esc_html__( 'Open the new service account, go to the %1$s tab, then %2$s. A .json file will download to your computer.', 'metricpulse' ),
+												'<strong>' . esc_html__( 'Keys', 'metricpulse' ) . '</strong>',
+												'<strong>' . esc_html__( 'Add Key → Create new key → JSON → Create', 'metricpulse' ) . '</strong>'
+											);
+											?>
+										</li>
+										<li><?php esc_html_e( 'Open that downloaded .json file in a text editor and paste its entire contents into the box above.', 'metricpulse' ); ?></li>
+										<li>
+											<?php
+											printf(
+												/* translators: 1: client_email field, 2: GA path, 3: Viewer role */
+												esc_html__( 'Copy the service account email (the %1$s value, ending in .iam.gserviceaccount.com). In Google Analytics, go to %2$s and add that email with the %3$s role.', 'metricpulse' ),
+												'<code>client_email</code>',
+												'<strong>' . esc_html__( 'Admin → Property Access Management', 'metricpulse' ) . '</strong>',
+												'<strong>' . esc_html__( 'Viewer', 'metricpulse' ) . '</strong>'
+											);
+											?>
+										</li>
+										<li><?php esc_html_e( 'Turn off Demo Mode above and click Save Settings. Your real data will appear within a few minutes.', 'metricpulse' ); ?></li>
+									</ol>
+									<p class="description"><?php esc_html_e( 'Note: GA4 processes data with a 24–48 hour delay, so today\'s and yesterday\'s numbers may look incomplete at first.', 'metricpulse' ); ?></p>
+								</div>
+							</details>
 						</div>
 
 						<!-- Sampling Rate Option Selector to prevent DB bloat -->
@@ -364,6 +460,18 @@ class Admin {
 								<option value="10" <?php selected( $sampling_rate, '10' ); ?>><?php esc_html_e( '10% (Record only 10% of clicks - Recommended for high traffic sites)', 'metricpulse' ); ?></option>
 							</select>
 							<p class="description"><?php esc_html_e( 'For high traffic sites, you can reduce the click tracking frequency to prevent database bloat. Sampling runs on a per-session basis.', 'metricpulse' ); ?></p>
+						</div>
+
+						<div class="trackly-form-group">
+							<label class="trackly-switch-label">
+								<input type="hidden" name="trackly_delete_data" value="no">
+								<input type="checkbox" name="trackly_delete_data" value="yes" <?php checked( get_option( 'trackly_delete_data', 'no' ), 'yes' ); ?>>
+								<span class="trackly-switch-slider"></span>
+								<div class="label-text">
+									<strong><?php esc_html_e( 'Delete all data on uninstall', 'metricpulse' ); ?></strong>
+									<p class="description"><?php esc_html_e( 'If enabled, deleting the plugin will permanently remove the click telemetry table and all settings. Leave off to preserve your data if you reinstall later.', 'metricpulse' ); ?></p>
+								</div>
+							</label>
 						</div>
 
 						<button type="submit" class="trackly-btn trackly-btn-primary"><?php esc_html_e( 'Save Settings', 'metricpulse' ); ?></button>
@@ -423,35 +531,35 @@ class Admin {
 	}
 
 	/**
-	 * Verify public click telemetry REST API submissions via public nonce.
+	 * Authorize anonymous click telemetry submissions.
+	 *
+	 * Note on nonces: for logged-out visitors wp_create_nonce() yields the same value for
+	 * everyone in a 12-24h window, so it provides no real CSRF protection AND is baked into
+	 * full-page caches where it silently expires, killing all telemetry. We therefore protect
+	 * this low-sensitivity, write-only endpoint with strict same-origin enforcement, a bot
+	 * filter, and per-IP rate limiting (applied in the callback) instead of a nonce.
 	 */
 	public function check_public_click_permissions( $request ) {
 		// 1. Block common web crawlers and scrapers via User-Agent to prevent database spam
 		$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
-		if ( preg_match( '/Googlebot|bingbot|Slurp|Baiduspider|YandexBot|DuckDuckBot|facebookexternalhit|LinkedInBot|Lighthouse|HeadlessChrome/i', $user_agent ) ) {
+		if ( '' === $user_agent || preg_match( '/bot|crawl|spider|slurp|Baiduspider|YandexBot|DuckDuckBot|facebookexternalhit|LinkedInBot|Lighthouse|HeadlessChrome|python-requests|curl|wget/i', $user_agent ) ) {
 			return false;
 		}
 
-		// 2. Prevent Cross-Origin click logging by verifying that Origin or Referer header matches the host domain
-		$origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+		// 2. Require a same-origin Origin or Referer header. Reject if BOTH are absent
+		//    (header-less scripted requests) or if either is present and mismatched.
+		$origin  = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
 		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
-		$host = wp_parse_url( home_url(), PHP_URL_HOST );
+		$host    = wp_parse_url( home_url(), PHP_URL_HOST );
 
 		if ( ! empty( $origin ) ) {
-			$origin_host = wp_parse_url( $origin, PHP_URL_HOST );
-			if ( $host !== $origin_host ) {
-				return false;
-			}
-		} elseif ( ! empty( $referer ) ) {
-			$referer_host = wp_parse_url( $referer, PHP_URL_HOST );
-			if ( $host !== $referer_host ) {
-				return false;
-			}
+			return wp_parse_url( $origin, PHP_URL_HOST ) === $host;
+		}
+		if ( ! empty( $referer ) ) {
+			return wp_parse_url( $referer, PHP_URL_HOST ) === $host;
 		}
 
-		// 3. Verify public telemetry CSRF nonce token
-		$nonce = $request->get_header( 'X-WP-Nonce' );
-		return (bool) wp_verify_nonce( $nonce, 'trackly_public_clicks' );
+		return false;
 	}
 
 	/**
@@ -607,6 +715,14 @@ class Admin {
 				array( 'name' => 'bounceRate' ),
 				array( 'name' => 'averageSessionDuration' ),
 			),
+			// Deterministically return only the top pages so we never dump thousands of rows into the DOM/cache.
+			'orderBys'   => array(
+				array(
+					'desc'   => true,
+					'metric' => array( 'metricName' => 'screenPageViews' ),
+				),
+			),
+			'limit'      => 20,
 		);
 
 		$batch_report = Api::batch_run_reports( array(
@@ -623,13 +739,14 @@ class Admin {
 
 		$realtime_users = Api::get_realtime_users();
 
+		// batch_run_reports() returns the reports array directly (indexed 0..n), not wrapped in a 'reports' key.
 		return new WP_REST_Response( array(
 			'success'        => true,
-			'summary'        => isset( $batch_report['reports'][0] ) ? $batch_report['reports'][0] : array(),
-			'chart'          => isset( $batch_report['reports'][1] ) ? $batch_report['reports'][1] : array(),
-			'sources'        => isset( $batch_report['reports'][2] ) ? $batch_report['reports'][2] : array(),
-			'devices'        => isset( $batch_report['reports'][3] ) ? $batch_report['reports'][3] : array(),
-			'pages'          => isset( $batch_report['reports'][4] ) ? $batch_report['reports'][4] : array(),
+			'summary'        => isset( $batch_report[0] ) ? $batch_report[0] : array(),
+			'chart'          => isset( $batch_report[1] ) ? $batch_report[1] : array(),
+			'sources'        => isset( $batch_report[2] ) ? $batch_report[2] : array(),
+			'devices'        => isset( $batch_report[3] ) ? $batch_report[3] : array(),
+			'pages'          => isset( $batch_report[4] ) ? $batch_report[4] : array(),
 			'realtime_users' => $realtime_users,
 		), 200 );
 	}
@@ -659,6 +776,23 @@ class Admin {
 			$path = '/';
 		}
 
+		// GA4 stores pagePath exactly as requested; WordPress permalinks may or may not carry a
+		// trailing slash. Match both variants so the panel is not empty due to a slash mismatch.
+		$path_variants = array_values( array_unique( array(
+			$path,
+			rtrim( $path, '/' ) !== '' ? rtrim( $path, '/' ) : '/',
+			rtrim( $path, '/' ) . '/',
+		) ) );
+
+		$page_path_filter = array(
+			'filter' => array(
+				'fieldName'    => 'pagePath',
+				'inListFilter' => array(
+					'values' => $path_variants,
+				),
+			),
+		);
+
 		$batch_requests = array(
 			// Query 1: Page Totals over the last 7 days
 			array(
@@ -670,15 +804,7 @@ class Admin {
 					array( 'name' => 'bounceRate' ),
 					array( 'name' => 'averageSessionDuration' ),
 				),
-				'dimensionFilter' => array(
-					'filter' => array(
-						'fieldName' => 'pagePath',
-						'stringFilter' => array(
-							'matchType' => 'EXACT',
-							'value'     => $path,
-						),
-					),
-				),
+				'dimensionFilter' => $page_path_filter,
 			),
 			// Query 2: Daily trend breakdown for statistical anomaly checks
 			array(
@@ -687,15 +813,7 @@ class Admin {
 				'metrics'         => array(
 					array( 'name' => 'screenPageViews' ),
 				),
-				'dimensionFilter' => array(
-					'filter' => array(
-						'fieldName' => 'pagePath',
-						'stringFilter' => array(
-							'matchType' => 'EXACT',
-							'value'     => $path,
-						),
-					),
-				),
+				'dimensionFilter' => $page_path_filter,
 			),
 		);
 
@@ -724,32 +842,50 @@ class Admin {
 	 * REST Callback to record a visitor click.
 	 */
 	public function record_click_callback( $request ) {
+		// Fixed 60s window rate limit per IP, counting REQUESTS (each request may carry a batch of clicks).
 		$ip = $this->get_ip_address();
 		$transient_key = 'trackly_rate_' . md5( $ip );
-		$clicks = get_transient( $transient_key );
+		$requests = get_transient( $transient_key );
 
-		if ( false === $clicks ) {
+		if ( false === $requests ) {
 			set_transient( $transient_key, 1, 60 );
-		} elseif ( $clicks >= 10 ) {
+		} elseif ( $requests >= 30 ) {
 			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'Rate limit exceeded.', 'metricpulse' ) ), 429 );
 		} else {
-			set_transient( $transient_key, $clicks + 1, 60 );
+			// Do not reset the TTL: keep the original 60s window so the limit cannot creep.
+			set_transient( $transient_key, $requests + 1, 60 );
 		}
 
 		$params = $request->get_json_params();
-		if ( empty( $params['page_url'] ) || ! isset( $params['click_x_pct'] ) || ! isset( $params['click_y_pct'] ) ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'Invalid click data.', 'metricpulse' ) ), 400 );
+
+		// Accept either a single click object or { clicks: [ ... ] } batch.
+		$batch = ( isset( $params['clicks'] ) && is_array( $params['clicks'] ) ) ? $params['clicks'] : array( $params );
+
+		// Cap the batch size defensively.
+		$batch = array_slice( $batch, 0, 50 );
+
+		$saved = 0;
+		foreach ( $batch as $click ) {
+			if ( empty( $click['page_url'] ) || ! isset( $click['click_x_pct'] ) || ! isset( $click['click_y_pct'] ) ) {
+				continue;
+			}
+			$ok = Database::log_click( array(
+				'page_url'         => $click['page_url'],
+				'element_tag'      => isset( $click['element_tag'] ) ? sanitize_text_field( $click['element_tag'] ) : 'unknown',
+				'element_selector' => isset( $click['element_selector'] ) ? sanitize_text_field( $click['element_selector'] ) : '',
+				'click_x_pct'      => floatval( $click['click_x_pct'] ),
+				'click_y_pct'      => floatval( $click['click_y_pct'] ),
+			) );
+			if ( $ok ) {
+				$saved++;
+			}
 		}
 
-		$log_result = Database::log_click( array(
-			'page_url'         => $params['page_url'],
-			'element_tag'      => isset( $params['element_tag'] ) ? sanitize_text_field( $params['element_tag'] ) : 'unknown',
-			'element_selector' => isset( $params['element_selector'] ) ? sanitize_text_field( $params['element_selector'] ) : '',
-			'click_x_pct'      => floatval( $params['click_x_pct'] ),
-			'click_y_pct'      => floatval( $params['click_y_pct'] ),
-		) );
+		if ( 0 === $saved ) {
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'No valid click data.', 'metricpulse' ) ), 400 );
+		}
 
-		return new WP_REST_Response( array( 'success' => (bool) $log_result ), 200 );
+		return new WP_REST_Response( array( 'success' => true, 'saved' => $saved ), 200 );
 	}
 
 	/**

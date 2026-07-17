@@ -9,6 +9,41 @@
 	let deviceChart = null;
 	let realtimeInterval = null;
 
+	// Translatable strings with English fallbacks.
+	const I18N = (typeof tracklyData !== 'undefined' && tracklyData.i18n) ? tracklyData.i18n : {};
+	function t(key, fallback) {
+		return (I18N && I18N[key]) ? I18N[key] : fallback;
+	}
+
+	// Run a render step in isolation; log (in debug) but never let it abort sibling renders.
+	function safe(fn) {
+		try {
+			fn();
+		} catch (e) {
+			if (typeof tracklyData !== 'undefined' && tracklyData.debug) {
+				console.error('MetricPulse render error: ', e);
+			}
+		}
+	}
+
+	// Extract the first dimension value from a GA4 row, tolerating malformed/empty rows.
+	function dimValue(row) {
+		return (row && row.dimensionValues && row.dimensionValues[0]) ? row.dimensionValues[0].value : null;
+	}
+
+	// Format a duration given in seconds as m:ss (consistent with the frontend panel).
+	function formatDuration(totalSeconds) {
+		const s = parseInt(totalSeconds, 10) || 0;
+		const mins = Math.floor(s / 60);
+		const secs = s % 60;
+		return mins + ':' + (secs < 10 ? '0' : '') + secs;
+	}
+
+	// Only allow same-document relative paths as hrefs (blocks javascript:, data:, absolute URLs).
+	function safeHref(path) {
+		return /^\/[^/]/.test(path) || path === '/' ? path : '#';
+	}
+
 	function escapeHtml(string) {
 		return String(string).replace(/[&<>"']/g, function(s) {
 			return {
@@ -61,7 +96,7 @@
 				height: 350,
 				toolbar: { show: false },
 				zoom: { enabled: false },
-				fontFamily: 'Outfit, sans-serif',
+				fontFamily: 'inherit',
 				foreColor: '#64748b'
 			},
 			colors: ['#8b5cf6', '#06b6d4'],
@@ -90,7 +125,7 @@
 			chart: {
 				type: 'donut',
 				height: 280,
-				fontFamily: 'Outfit, sans-serif'
+				fontFamily: 'inherit'
 			},
 			colors: ['#8b5cf6', '#06b6d4', '#10b981', '#f43f5e', '#e2e8f0'],
 			series: [],
@@ -103,7 +138,7 @@
 			chart: {
 				type: 'donut',
 				height: 280,
-				fontFamily: 'Outfit, sans-serif'
+				fontFamily: 'inherit'
 			},
 			colors: ['#4f46e5', '#06b6d4', '#cbd5e1'],
 			series: [],
@@ -134,12 +169,13 @@
 			},
 			success: function(res) {
 				if (res.success) {
-					updateSummary(res.summary);
-					updateMainChart(res.chart);
-					updateSourceChart(res.sources);
-					updateDeviceChart(res.devices);
-					updatePagesTable(res.pages);
-					updateRealtimeValue(res.realtime_users);
+					// Isolate each section so a single malformed report never blanks the whole dashboard.
+					safe(function() { updateSummary(res.summary); });
+					safe(function() { updateMainChart(res.chart); });
+					safe(function() { updateSourceChart(res.sources); });
+					safe(function() { updateDeviceChart(res.devices); });
+					safe(function() { updatePagesTable(res.pages); });
+					safe(function() { updateRealtimeValue(res.realtime_users); });
 				} else {
 					if (typeof tracklyData !== 'undefined' && tracklyData.debug) {
 						console.error('GA Data retrieval failed: ', res.error);
@@ -158,8 +194,11 @@
 	 * Periodically fetch active visitor count
 	 */
 	function startRealtimePolling() {
-		// Poll every 20 seconds to lightweight /realtime endpoint
+		// Poll every 20 seconds, but skip while the tab is hidden to avoid needless background requests.
 		realtimeInterval = setInterval(function() {
+			if (document.visibilityState === 'hidden') {
+				return;
+			}
 			$.ajax({
 				url: tracklyData.rest_url + '/realtime',
 				method: 'GET',
@@ -177,9 +216,10 @@
 
 	function updateRealtimeValue(count) {
 		const $counter = $('#trackly-active-users');
-		// Simple counter increment/decrement animation
+		// -1 is the "unavailable" sentinel (API error / not connected) — never render it as a real 0.
+		const display = (parseInt(count, 10) < 0) ? t('unavailable', 'N/A') : count;
 		$counter.fadeOut(150, function() {
-			$(this).text(count).fadeIn(150);
+			$(this).text(display).fadeIn(150);
 		});
 	}
 
@@ -192,20 +232,14 @@
 		const metrics = summaryData.rows[0].metricValues;
 		const views = parseInt(metrics[0].value).toLocaleString();
 		const users = parseInt(metrics[1].value).toLocaleString();
-		
+
 		// Bounce rate is a ratio e.g. 0.4632 -> 46.3%
 		const bounce = (parseFloat(metrics[2].value) * 100).toFixed(1) + '%';
-		
-		// Avg duration in seconds -> mm:ss
-		const durSec = parseInt(metrics[3].value);
-		const mins = Math.floor(durSec / 60);
-		const secs = durSec % 60;
-		const duration = mins + 'd ' + (secs < 10 ? '0' : '') + secs + 's';
 
 		$('#trackly-stat-views').text(views);
 		$('#trackly-stat-users').text(users);
 		$('#trackly-stat-bounce').text(bounce);
-		$('#trackly-stat-duration').text(duration);
+		$('#trackly-stat-duration').text(formatDuration(metrics[3].value));
 	}
 
 	/**
@@ -219,7 +253,8 @@
 		if (chartData.rows && chartData.rows.length > 0) {
 			chartData.rows.forEach(function(row) {
 				// Parse date e.g. '20260715' -> '15 Tem'
-				const rawDate = row.dimensionValues[0].value;
+				const rawDate = dimValue(row);
+				if (!rawDate) return;
 				const year = rawDate.substring(0, 4);
 				const month = rawDate.substring(4, 6);
 				const day = rawDate.substring(6, 8);
@@ -237,8 +272,8 @@
 		});
 
 		mainChart.updateSeries([
-			{ name: 'Pageviews', data: viewsSeries },
-			{ name: 'Users', data: usersSeries }
+			{ name: t('pageviews', 'Pageviews'), data: viewsSeries },
+			{ name: t('users', 'Users'), data: usersSeries }
 		]);
 	}
 
@@ -251,7 +286,9 @@
 
 		if (sourcesData.rows && sourcesData.rows.length > 0) {
 			sourcesData.rows.forEach(function(row) {
-				labels.push(row.dimensionValues[0].value);
+				const label = dimValue(row);
+				if (label === null) return;
+				labels.push(label);
 				series.push(parseInt(row.metricValues[0].value));
 			});
 		}
@@ -271,9 +308,10 @@
 
 		if (devicesData.rows && devicesData.rows.length > 0) {
 			devicesData.rows.forEach(function(row) {
-				const dev = row.dimensionValues[0].value;
+				const dev = dimValue(row);
+				if (dev === null) return;
 				// Translate device name
-				const translatedDev = dev === 'desktop' ? 'Desktop' : (dev === 'mobile' ? 'Mobile' : 'Tablet');
+				const translatedDev = dev === 'desktop' ? t('desktop', 'Desktop') : (dev === 'mobile' ? t('mobile', 'Mobile') : t('tablet', 'Tablet'));
 				labels.push(translatedDev);
 				series.push(parseInt(row.metricValues[0].value));
 			});
@@ -293,25 +331,23 @@
 		$tbody.empty();
 
 		if (!pagesData.rows || pagesData.rows.length === 0) {
-			$tbody.append('<tr><td colspan="5" class="loading-td">No data found.</td></tr>');
+			$tbody.append('<tr><td colspan="5" class="loading-td">' + escapeHtml(t('noData', 'No data found.')) + '</td></tr>');
 			return;
 		}
 
 		pagesData.rows.forEach(function(row) {
-			const path = row.dimensionValues[0].value;
+			const path = dimValue(row);
+			if (path === null) return;
 			const escPath = escapeHtml(path);
+			const escHref = escapeHtml(safeHref(path));
 			const views = parseInt(row.metricValues[0].value).toLocaleString();
 			const users = parseInt(row.metricValues[1].value).toLocaleString();
 			const bounce = (parseFloat(row.metricValues[2].value) * 100).toFixed(1) + '%';
-			
-			const durSec = parseInt(row.metricValues[3].value);
-			const mins = Math.floor(durSec / 60);
-			const secs = durSec % 60;
-			const duration = mins + ':' + (secs < 10 ? '0' : '') + secs;
+			const duration = formatDuration(row.metricValues[3].value);
 
 			const html = `
 				<tr>
-					<td><a href="${escPath}" target="_blank" class="trackly-page-link"><code>${escPath}</code></a></td>
+					<td><a href="${escHref}" target="_blank" rel="noopener nofollow" class="trackly-page-link"><code>${escPath}</code></a></td>
 					<td><strong>${views}</strong></td>
 					<td>${users}</td>
 					<td>${bounce}</td>

@@ -9,12 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: WordPress.org Plugin Deploy
         uses: 10up/action-wordpress-plugin-deploy@stable
         env:
           SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
-          SLUG: trackly
+          SLUG: metricpulse
           ASSETS_DIR: assets
+          BUILD_DIR: metricpulse

@@ -1,12 +1,15 @@
 <?php
 /**
  * Plugin Name:       MetricPulse
- * Description:       A modern, stunning Google Analytics 4 dashboard and page-level statistics client for WordPress with Heatmaps and AI Insights.
+ * Description:       A modern Google Analytics 4 dashboard and page-level statistics client for WordPress with local click heatmaps and statistical anomaly insights.
  * Version:           1.0.0
- * Author:            Trackly Team
- * Author URI:        https://trackly.io
+ * Requires at least: 6.0
+ * Requires PHP:      8.1
+ * Author:            MetricPulse
  * License:           GPLv2 or later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       metricpulse
+ * Domain Path:       /languages
  */
 
 // If this file is called directly, abort.

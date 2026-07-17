@@ -1,8 +1,7 @@
 /**
- * Trackly Analytics Front-End Floating Bar & Overlay Styles
+ * MetricPulse Front-End Floating Bar & Overlay Styles
+ * Uses the system font stack (no remote Google Fonts request) for privacy and performance.
  */
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
 #trackly-stats-bar-wrapper {
 	--gp-primary: #8b5cf6;
@@ -14,7 +13,7 @@
 	--gp-text-muted: #94a3b8;
 	--gp-radius: 18px;
 	--gp-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
-	--gp-font: 'Outfit', sans-serif;
+	--gp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 
 	position: fixed;
 	bottom: 30px;
@@ -429,4 +428,47 @@
 /* Utility classes */
 .trackly-hidden {
 	display: none;
+}
+
+/* Demo Mode tag in panel header */
+.trackly-demo-tag {
+	margin-left: 8px;
+	padding: 2px 8px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	border-radius: 6px;
+	background: rgba(245, 158, 11, 0.2);
+	color: #fbbf24;
+	border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* Toast Notification (styles moved out of JS) */
+.trackly-toast {
+	position: fixed;
+	bottom: 30px;
+	left: 30px;
+	padding: 14px 24px;
+	border-radius: 12px;
+	color: #ffffff;
+	font-family: var(--gp-font);
+	font-size: 13px;
+	font-weight: 600;
+	box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	z-index: 1000000;
+	opacity: 0;
+	transform: translateY(20px);
+	transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.trackly-toast.is-success {
+	background: rgba(16, 185, 129, 0.95);
+}
+.trackly-toast.is-error {
+	background: rgba(244, 63, 94, 0.95);
+}
+.trackly-toast.is-visible {
+	opacity: 1;
+	transform: translateY(0);
 }

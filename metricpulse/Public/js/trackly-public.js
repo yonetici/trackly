@@ -19,39 +19,17 @@
 	 */
 	function showToast(message, type = 'success') {
 		$('#trackly-stats-bar-wrapper .trackly-toast').remove();
-		const $toast = $('<div class="trackly-toast"></div>').text(message);
-		
-		// Color scheme styles
-		const bgColor = type === 'error' ? 'rgba(244, 63, 94, 0.95)' : 'rgba(16, 185, 129, 0.95)';
-		
-		$toast.css({
-			position: 'fixed',
-			bottom: '30px',
-			left: '30px',
-			background: bgColor,
-			color: '#ffffff',
-			padding: '14px 24px',
-			borderRadius: '12px',
-			boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.3)',
-			backdropFilter: 'blur(10px)',
-			'-webkit-backdrop-filter': 'blur(10px)',
-			zIndex: 1000000,
-			fontFamily: "'Outfit', sans-serif",
-			fontSize: '13px',
-			fontWeight: '600',
-			opacity: 0,
-			transform: 'translateY(20px)',
-			transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-		});
+		// Styling lives in trackly-public.css (.trackly-toast / .is-error / .is-visible).
+		const $toast = $('<div class="trackly-toast"></div>')
+			.addClass(type === 'error' ? 'is-error' : 'is-success')
+			.text(message);
 
 		$('#trackly-stats-bar-wrapper').append($toast);
 
-		setTimeout(() => {
-			$toast.css({ opacity: 1, transform: 'translateY(0)' });
-		}, 50);
+		setTimeout(() => $toast.addClass('is-visible'), 50);
 
 		setTimeout(() => {
-			$toast.css({ opacity: 0, transform: 'translateY(20px)' });
+			$toast.removeClass('is-visible');
 			setTimeout(() => $toast.remove(), 300);
 		}, 3500);
 	}
@@ -106,16 +84,23 @@
 			},
 			success: function(res) {
 				if (res.success && res.report.rows && res.report.rows.length > 0) {
-					const metrics = res.report.rows[0].metricValues;
-					const views = parseInt(metrics[0].value);
-					const users = parseInt(metrics[1].value);
-					const bounce = parseFloat(metrics[2].value);
-					const duration = parseInt(metrics[3].value);
+					// The query matches both slash variants of the path, so aggregate any returned rows.
+					let views = 0, users = 0, durationTotal = 0, bounceSum = 0, rowCount = 0;
+					res.report.rows.forEach(function(row) {
+						const m = row.metricValues;
+						views += parseInt(m[0].value) || 0;
+						users += parseInt(m[1].value) || 0;
+						bounceSum += parseFloat(m[2].value) || 0;
+						durationTotal += parseInt(m[3].value) || 0;
+						rowCount++;
+					});
+					const bounce = rowCount ? (bounceSum / rowCount) : 0;
+					const duration = rowCount ? Math.round(durationTotal / rowCount) : 0;
 
 					$('#trackly-p-views').text(views.toLocaleString());
 					$('#trackly-p-users').text(users.toLocaleString());
 					$('#trackly-p-bounce').text((bounce * 100).toFixed(1) + '%');
-					
+
 					const mins = Math.floor(duration / 60);
 					const secs = duration % 60;
 					$('#trackly-p-duration').text(mins + ':' + (secs < 10 ? '0' : '') + secs);
@@ -243,10 +228,23 @@
 	 */
 	function renderHeatmap(clicks) {
 		clearHeatmapDots();
-		
+
+		// Dots are positioned in percentages of the FULL document. For those percentages to resolve
+		// correctly, the overlay must be as tall as the document and its offset parent must be
+		// positioned. body is often statically positioned, so ensure it is relative first.
+		if (getComputedStyle(document.body).position === 'static') {
+			document.body.style.position = 'relative';
+		}
+
+		const docHeight = Math.max(
+			document.body.scrollHeight, document.documentElement.scrollHeight,
+			document.body.offsetHeight, document.documentElement.offsetHeight
+		);
+
 		const $overlay = $('<div id="trackly-heatmap-overlay"></div>');
+		$overlay.css('height', docHeight + 'px');
 		const fragment = document.createDocumentFragment();
-		
+
 		clicks.forEach(function(click) {
 			const dot = document.createElement('div');
 			dot.className = 'trackly-heatmap-dot';
@@ -254,7 +252,7 @@
 			dot.style.top = click.click_y_pct + '%';
 			fragment.appendChild(dot);
 		});
-		
+
 		$overlay.append(fragment);
 		$('body').append($overlay);
 	}

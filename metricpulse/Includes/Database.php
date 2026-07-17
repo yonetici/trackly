@@ -114,6 +114,35 @@ class Database {
 	}
 
 	/**
+	 * Acquire a mutually-exclusive lock using an atomic add_option() INSERT.
+	 *
+	 * add_option() fails (returns false) when the option row already exists, so exactly one
+	 * caller can create it — a real mutex, unlike a get_option()+update_option() pair. A stale
+	 * lock older than $ttl seconds is reclaimed so a crashed worker can't wedge the lock forever.
+	 *
+	 * @return bool True if the lock was acquired by this caller.
+	 */
+	public static function acquire_lock( string $key, int $ttl = 600 ): bool {
+		if ( add_option( $key, time(), '', 'no' ) ) {
+			return true;
+		}
+		// Row exists: reclaim it only if it is stale.
+		$held = (int) get_option( $key, 0 );
+		if ( $held && ( time() - $held ) >= $ttl ) {
+			update_option( $key, time(), 'no' );
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Release a lock acquired via acquire_lock().
+	 */
+	public static function release_lock( string $key ): void {
+		delete_option( $key );
+	}
+
+	/**
 	 * Clean up click data older than 30 days.
 	 */
 	public static function daily_cleanup(): void {

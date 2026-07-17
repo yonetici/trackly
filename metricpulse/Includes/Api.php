@@ -41,10 +41,24 @@ class Api {
 	}
 
 	/**
-	 * Check if Demo Mode is active.
+	 * Check if Demo Mode is explicitly enabled.
 	 */
 	public static function is_demo_mode(): bool {
 		return self::get_service()->is_demo_mode();
+	}
+
+	/**
+	 * Check if valid GA4 credentials are configured.
+	 */
+	public static function is_configured(): bool {
+		return self::get_service()->is_configured();
+	}
+
+	/**
+	 * Get connection state: 'demo', 'connected', or 'misconfigured'.
+	 */
+	public static function get_connection_state(): string {
+		return self::get_service()->get_connection_state();
 	}
 
 	/**

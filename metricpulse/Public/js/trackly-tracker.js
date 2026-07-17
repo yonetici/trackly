@@ -179,33 +179,46 @@
 		const batch = clicksQueue.slice();
 		clicksQueue = [];
 
-		batch.forEach(function(click) {
-			fetch(window.tracklyTrackerData.rest_url + '/record-click', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': window.tracklyTrackerData.nonce
-				},
-				body: JSON.stringify(click),
-				keepalive: true
-			}).catch(function() {
-				// Fail silently
-			});
+		// Send the whole batch in ONE request (this is the point of batching). The endpoint
+		// authorizes anonymous writes by same-origin, so no nonce is needed (nonces break under
+		// full-page caching for logged-out visitors).
+		fetch(window.tracklyTrackerData.rest_url + '/record-click', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ clicks: batch }),
+			keepalive: true
+		}).catch(function() {
+			// Fail silently
 		});
 	}
 
 	/**
-	 * Unique CSS Selector builder supporting SVG elements class names
+	 * CSS.escape wrapper with a safe fallback for very old browsers.
+	 */
+	function cssEscape(value) {
+		if ( window.CSS && typeof window.CSS.escape === 'function' ) {
+			return window.CSS.escape(value);
+		}
+		// Minimal fallback: escape characters that are invalid in an identifier.
+		return String(value).replace(/([^a-zA-Z0-9_-])/g, '\\$1');
+	}
+
+	/**
+	 * Unique CSS Selector builder. Works for HTML and SVG elements, and escapes ids/classes so
+	 * framework class names (e.g. Tailwind's "md:flex", "w-1/2") produce valid, queryable selectors.
 	 */
 	function getUniqueSelector(el) {
-		if ( ! ( el instanceof HTMLElement ) ) {
+		// SVG nodes are Element but NOT HTMLElement; use the broader Element check.
+		if ( ! ( el instanceof Element ) ) {
 			return '';
 		}
 		let path = [];
-		while ( el.nodeType === Node.ELEMENT_NODE ) {
+		while ( el && el.nodeType === Node.ELEMENT_NODE ) {
 			let selector = el.nodeName.toLowerCase();
 			if ( el.id ) {
-				selector += '#' + el.id;
+				selector += '#' + cssEscape(el.id);
 				path.unshift(selector);
 				break;
 			} else {
@@ -213,14 +226,18 @@
 				if ( typeof el.className === 'string' ) {
 					className = el.className.trim();
 				} else if ( el.getAttribute ) {
+					// SVG elements expose className as an SVGAnimatedString, not a string.
 					className = ( el.getAttribute('class') || '' ).trim();
 				}
 
-				className = className.replace('.trackly-selector-hovered', '');
+				className = className.replace('trackly-selector-hovered', '').trim();
 				if ( className ) {
-					selector += '.' + className.replace(/\s+/g, '.');
+					const classes = className.split(/\s+/).filter(Boolean).map(cssEscape);
+					if ( classes.length ) {
+						selector += '.' + classes.join('.');
+					}
 				}
-				
+
 				let sib = el, nth = 1;
 				while ( sib = sib.previousElementSibling ) {
 					if ( sib.nodeName.toLowerCase() === el.nodeName.toLowerCase() ) {

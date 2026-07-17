@@ -15,6 +15,10 @@ class GoogleAnalyticsService {
 	const TOKEN_KEY = 'trackly_access_token';
 	const BATCH_PREFIX = 'trackly_b_';
 	const REALTIME_KEY = 'trackly_realtime_cache';
+	const CACHE_VERSION_KEY = 'trackly_cache_ver';
+
+	// Sentinel returned by get_realtime_users() when the value could not be retrieved (distinct from a genuine 0).
+	const REALTIME_UNAVAILABLE = -1;
 
 	/**
 	 * Constructor.
@@ -22,21 +26,42 @@ class GoogleAnalyticsService {
 	public function __construct() {}
 
 	/**
-	 * Flush all cached GA4 API transient data.
+	 * Current report-cache generation number. Bumping it (see flush_cache) invalidates every
+	 * previously stored report key at once, which works even when an external object cache
+	 * (Redis/Memcached) is active and transients never touch the options table.
+	 */
+	private function cache_version(): int {
+		return (int) get_option( self::CACHE_VERSION_KEY, 1 );
+	}
+
+	/**
+	 * Flush all cached GA4 API data by rotating the cache generation and clearing hot keys.
 	 */
 	public function flush_cache(): void {
 		delete_transient( self::TOKEN_KEY );
 		delete_transient( self::REALTIME_KEY );
 
+		// Rotate the generation so all versioned batch keys become unreachable regardless of backend.
+		update_option( self::CACHE_VERSION_KEY, $this->cache_version() + 1 );
+
+		// Best-effort cleanup of any DB-stored batch transients (no-op under external object cache).
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", '_transient_' . self::BATCH_PREFIX . '%' ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( '_transient_' . self::BATCH_PREFIX ) . '%' ) );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", '_transient_timeout_' . self::BATCH_PREFIX . '%' ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( '_transient_timeout_' . self::BATCH_PREFIX ) . '%' ) );
 	}
 
+	// AES-256-GCM binary layout constants (lengths are fixed by the cipher).
+	const GCM_IV_LEN = 12;
+	const GCM_TAG_LEN = 16;
+
 	/**
-	 * Secure encryption key generation using site salts and unique dynamic secure salt option.
+	 * Derive a 32-byte (256-bit) AES key from the site salts and a persisted per-site secret salt.
+	 *
+	 * Uses the raw binary sha256 digest (not the 64-char hex string) so the full 256 bits of
+	 * entropy actually reach AES-256. The per-site salt is generated on demand if it is missing
+	 * so there is never a shared, hard-coded fallback key across installs.
 	 */
 	private function get_encryption_key(): string {
 		$key = '';
@@ -46,55 +71,56 @@ class GoogleAnalyticsService {
 		if ( defined( 'NONCE_KEY' ) ) {
 			$key .= NONCE_KEY;
 		}
-		
-		$fallback_salt = get_option( 'trackly_secure_salt' );
-		if ( $fallback_salt ) {
-			$key .= $fallback_salt;
-		} else {
-			$key .= 'trackly-fallback-key-19028';
+
+		$secure_salt = get_option( 'trackly_secure_salt' );
+		if ( empty( $secure_salt ) ) {
+			$secure_salt = wp_generate_password( 64, true, true );
+			update_option( 'trackly_secure_salt', $secure_salt, 'no' );
 		}
-		
-		return substr( hash( 'sha256', $key ), 0, 32 );
+		$key .= $secure_salt;
+
+		// Raw 32-byte digest => true AES-256 key length.
+		return hash( 'sha256', $key, true );
 	}
 
 	/**
 	 * Encrypt credentials before saving to DB using AES-256-GCM.
+	 * Stored layout (base64): [12-byte IV][16-byte tag][ciphertext].
 	 */
 	public function encrypt_data( string $data ): string {
-		if ( empty( $data ) ) {
+		if ( '' === $data ) {
 			return '';
 		}
 		$key = $this->get_encryption_key();
-		$iv = openssl_random_pseudo_bytes( 12 );
+		$iv = openssl_random_pseudo_bytes( self::GCM_IV_LEN );
 		$tag = '';
 		$encrypted = openssl_encrypt( $data, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
 		if ( false === $encrypted ) {
 			return '';
 		}
-		return base64_encode( $encrypted . '::' . $iv . '::' . $tag );
+		// Concatenate fixed-length fields; never split on a delimiter that could occur in binary output.
+		return base64_encode( $iv . $tag . $encrypted );
 	}
 
 	/**
 	 * Decrypt credentials from DB using AES-256-GCM.
 	 */
 	public function decrypt_data( string $data ): string {
-		if ( empty( $data ) ) {
+		if ( '' === $data ) {
 			return '';
 		}
 		$key = $this->get_encryption_key();
-		$decoded = base64_decode( $data );
-		if ( false === $decoded ) {
+		$decoded = base64_decode( $data, true );
+		if ( false === $decoded || strlen( $decoded ) <= ( self::GCM_IV_LEN + self::GCM_TAG_LEN ) ) {
 			return '';
 		}
-		$parts = explode( '::', $decoded, 3 );
-		if ( count( $parts ) === 3 ) {
-			$encrypted = $parts[0];
-			$iv = $parts[1];
-			$tag = $parts[2];
-			$decrypted = openssl_decrypt( $encrypted, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
-			return ( false !== $decrypted ) ? $decrypted : '';
-		}
-		return '';
+
+		$iv = substr( $decoded, 0, self::GCM_IV_LEN );
+		$tag = substr( $decoded, self::GCM_IV_LEN, self::GCM_TAG_LEN );
+		$encrypted = substr( $decoded, self::GCM_IV_LEN + self::GCM_TAG_LEN );
+
+		$decrypted = openssl_decrypt( $encrypted, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
+		return ( false !== $decrypted ) ? $decrypted : '';
 	}
 
 	/**
@@ -104,11 +130,6 @@ class GoogleAnalyticsService {
 	private function get_credentials_json(): string {
 		if ( defined( 'TRACKLY_GA_JSON' ) && ! empty( TRACKLY_GA_JSON ) ) {
 			return TRACKLY_GA_JSON;
-		}
-
-		if ( isset( $_SERVER['TRACKLY_GA_JSON'] ) && ! empty( $_SERVER['TRACKLY_GA_JSON'] ) ) {
-			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			return wp_unslash( $_SERVER['TRACKLY_GA_JSON'] );
 		}
 
 		$env_val = getenv( 'TRACKLY_GA_JSON' );
@@ -132,21 +153,41 @@ class GoogleAnalyticsService {
 	}
 
 	/**
-	 * Check if Demo Mode is active.
+	 * Whether Demo (mock) Mode is explicitly enabled.
+	 *
+	 * This intentionally reflects ONLY the user's setting. It must not silently flip to true
+	 * when credentials are missing/broken — doing so would present random mock numbers as if
+	 * they were real analytics. Callers use get_connection_state()/is_configured() to tell a
+	 * misconfiguration apart from an intentional demo.
 	 */
 	public function is_demo_mode(): bool {
-		$demo = get_option( 'trackly_demo_mode', 'yes' );
-		if ( $demo === 'yes' ) {
-			return true;
-		}
+		return get_option( 'trackly_demo_mode', 'yes' ) === 'yes';
+	}
 
-		$credentials_json = $this->get_credentials_json();
+	/**
+	 * Whether real GA4 credentials are present and structurally usable.
+	 */
+	public function is_configured(): bool {
 		$property_id = get_option( 'trackly_property_id' );
-		if ( empty( $credentials_json ) || empty( $property_id ) ) {
-			return true;
+		if ( empty( $property_id ) ) {
+			return false;
 		}
+		$credentials_json = $this->get_credentials_json();
+		if ( empty( $credentials_json ) ) {
+			return false;
+		}
+		$creds = json_decode( $credentials_json, true );
+		return is_array( $creds ) && ! empty( $creds['private_key'] ) && ! empty( $creds['client_email'] );
+	}
 
-		return false;
+	/**
+	 * Resolve the connection state for UI/badges: 'demo', 'connected', or 'misconfigured'.
+	 */
+	public function get_connection_state(): string {
+		if ( $this->is_demo_mode() ) {
+			return 'demo';
+		}
+		return $this->is_configured() ? 'connected' : 'misconfigured';
 	}
 
 	/**
@@ -180,7 +221,8 @@ class GoogleAnalyticsService {
 			'scope' => 'https://www.googleapis.com/auth/analytics.readonly',
 			'aud'   => 'https://oauth2.googleapis.com/token',
 			'exp'   => $now + 3600,
-			'iat'   => $now,
+			// Backdate iat slightly to tolerate minor server clock skew against Google's servers.
+			'iat'   => $now - 30,
 		) ) );
 
 		$header_payload = $header . '.' . $payload;
@@ -225,12 +267,7 @@ class GoogleAnalyticsService {
 	 * Run a Batch of Reports to optimize quota usage and execution time.
 	 */
 	public function batch_run_reports( array $requests ): array|WP_Error {
-		$cache_key = self::BATCH_PREFIX . md5( (string) json_encode( $requests ) );
-		$cached = get_transient( $cache_key );
-		if ( false !== $cached ) {
-			return is_array( $cached ) ? $cached : array();
-		}
-
+		// Demo Mode: return deterministic mock data (explicit user choice).
 		if ( $this->is_demo_mode() ) {
 			$mock_reports = array();
 			foreach ( $requests as $req ) {
@@ -239,11 +276,20 @@ class GoogleAnalyticsService {
 			return $mock_reports;
 		}
 
-		$property_id = get_option( 'trackly_property_id', '' );
-		if ( empty( $property_id ) ) {
-			return new WP_Error( 'no_property', __( 'Google Analytics Property ID is missing.', 'metricpulse' ) );
+		// Not demo but not usable => surface an error instead of silently faking data.
+		if ( ! $this->is_configured() ) {
+			return new WP_Error( 'not_configured', __( 'Google Analytics is not connected. Add a valid Property ID and Service Account JSON, or enable Demo Mode.', 'metricpulse' ) );
 		}
 
+		// Order-independent cache key (sort recursively) tied to the current cache generation.
+		$normalized = $this->normalize_for_cache_key( $requests );
+		$cache_key = self::BATCH_PREFIX . $this->cache_version() . '_' . md5( (string) wp_json_encode( $normalized ) );
+		$cached = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return is_array( $cached ) ? $cached : array();
+		}
+
+		$property_id = get_option( 'trackly_property_id', '' );
 		$token = $this->get_access_token();
 		if ( is_wp_error( $token ) ) {
 			return $token;
@@ -251,32 +297,84 @@ class GoogleAnalyticsService {
 
 		$url = "https://analyticsdata.googleapis.com/v1beta/properties/{$property_id}:batchRunReports";
 
-		$response = wp_remote_post( $url, array(
-			'timeout' => 15,
-			'headers' => array(
-				'Authorization' => 'Bearer ' . $token,
-				'Content-Type'  => 'application/json',
-			),
-			'body'    => json_encode( array( 'requests' => $requests ) ),
-		) );
-
+		$response = $this->post_ga_request( $url, array( 'requests' => $requests ), (string) $token );
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
 
 		$status = wp_remote_retrieve_response_code( $response );
-		$body_raw = wp_remote_retrieve_body( $response );
-		$body = json_decode( $body_raw, true );
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( 200 !== $status ) {
-			$msg = isset( $body['error']['message'] ) ? $body['error']['message'] : __( 'Failed to query GA4 Data API.', 'metricpulse' );
-			return new WP_Error( 'ga_api_error', $msg );
+			return new WP_Error( 'ga_api_error', $this->format_api_error( $status, $body ) );
 		}
 
 		$reports = isset( $body['reports'] ) ? $body['reports'] : array();
 		set_transient( $cache_key, $reports, 10 * MINUTE_IN_SECONDS ); // Cache reports for 10 mins
 
 		return $reports;
+	}
+
+	/**
+	 * POST a JSON payload to the GA4 Data API with a single retry on transient (429/503) errors.
+	 */
+	private function post_ga_request( string $url, array $payload, string $token ) {
+		$args = array(
+			'timeout' => 15,
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $token,
+				'Content-Type'  => 'application/json',
+			),
+			'body'    => wp_json_encode( $payload ),
+		);
+
+		$response = wp_remote_post( $url, $args );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$status = wp_remote_retrieve_response_code( $response );
+		if ( 429 === $status || 503 === $status ) {
+			// Brief backoff, then one retry for rate-limit / temporary unavailability.
+			sleep( 1 );
+			$retry = wp_remote_post( $url, $args );
+			if ( ! is_wp_error( $retry ) ) {
+				return $retry;
+			}
+		}
+
+		return $response;
+	}
+
+	/**
+	 * Build a human-readable message that distinguishes quota, auth, and generic API failures.
+	 */
+	private function format_api_error( int $status, $body ): string {
+		$detail = ( is_array( $body ) && isset( $body['error']['message'] ) ) ? $body['error']['message'] : '';
+
+		if ( 429 === $status ) {
+			return __( 'Google Analytics API quota exceeded. Please try again later.', 'metricpulse' ) . ( $detail ? ' (' . $detail . ')' : '' );
+		}
+		if ( 401 === $status || 403 === $status ) {
+			return __( 'Access denied by Google Analytics. Confirm the service account is added as a Viewer on the property.', 'metricpulse' ) . ( $detail ? ' (' . $detail . ')' : '' );
+		}
+		if ( $detail ) {
+			return $detail;
+		}
+		return __( 'Failed to query GA4 Data API.', 'metricpulse' );
+	}
+
+	/**
+	 * Recursively sort array keys so logically identical requests map to the same cache key.
+	 */
+	private function normalize_for_cache_key( array $data ): array {
+		ksort( $data );
+		foreach ( $data as $key => $value ) {
+			if ( is_array( $value ) ) {
+				$data[ $key ] = $this->normalize_for_cache_key( $value );
+			}
+		}
+		return $data;
 	}
 
 	/**
@@ -305,21 +403,19 @@ class GoogleAnalyticsService {
 			return $mock_users;
 		}
 
-		$property_id = get_option( 'trackly_property_id', '' );
-		if ( empty( $property_id ) ) {
-			return 0;
+		// Not connected or auth failed: report "unavailable" and DO NOT cache it as 0,
+		// so a real zero is never confused with an outage and the next poll retries.
+		if ( ! $this->is_configured() ) {
+			return self::REALTIME_UNAVAILABLE;
 		}
 
+		$property_id = get_option( 'trackly_property_id', '' );
 		$token = $this->get_access_token();
 		if ( is_wp_error( $token ) ) {
-			return 0;
+			return self::REALTIME_UNAVAILABLE;
 		}
 
 		$url = "https://analyticsdata.googleapis.com/v1beta/properties/{$property_id}:runRealtimeReport";
-
-		$payload = array(
-			'metrics' => array( array( 'name' => 'activeUsers' ) ),
-		);
 
 		$response = wp_remote_post( $url, array(
 			'timeout' => 10,
@@ -327,11 +423,11 @@ class GoogleAnalyticsService {
 				'Authorization' => 'Bearer ' . $token,
 				'Content-Type'  => 'application/json',
 			),
-			'body'    => json_encode( $payload ),
+			'body'    => wp_json_encode( array( 'metrics' => array( array( 'name' => 'activeUsers' ) ) ) ),
 		) );
 
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-			return 0;
+			return self::REALTIME_UNAVAILABLE;
 		}
 
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
@@ -352,87 +448,115 @@ class GoogleAnalyticsService {
 	}
 
 	/**
-	 * Fallback mockup GA4 data generator for demo/sandbox environments.
+	 * Rich mock GA4 report generator for Demo Mode / sandbox environments.
+	 *
+	 * Produces realistic, self-consistent data for every dimension the dashboard requests
+	 * (date trend, page paths, channel groups, device categories) plus a totals row, and
+	 * scales the daily trend / totals to the requested reporting window (7 vs 30 days).
 	 */
 	private function generate_mock_report( array $request ): array {
 		$dimensions = isset( $request['dimensions'] ) ? $request['dimensions'] : array();
-		$metrics = isset( $request['metrics'] ) ? $request['metrics'] : array();
+		$metrics    = isset( $request['metrics'] ) ? $request['metrics'] : array();
 
-		$is_pagePath = false;
-		$is_sessionSource = false;
-		$is_device = false;
-		$is_date = false;
+		$dim_names = array_map(
+			function ( $d ) { return isset( $d['name'] ) ? $d['name'] : ''; },
+			$dimensions
+		);
+		$has_dim = function ( $name ) use ( $dim_names ) {
+			return in_array( $name, $dim_names, true );
+		};
 
-		foreach ( $dimensions as $dim ) {
-			if ( $dim['name'] === 'pagePath' ) {
-				$is_pagePath = true;
-			}
-			if ( $dim['name'] === 'sessionSource' ) {
-				$is_sessionSource = true;
-			}
-			if ( $dim['name'] === 'deviceCategory' ) {
-				$is_device = true;
-			}
-			if ( $dim['name'] === 'date' ) {
-				$is_date = true;
-			}
+		// Derive the window length from a "NdaysAgo" start date so 7-day and 30-day views differ.
+		$days = 7;
+		if ( isset( $request['dateRanges'][0]['startDate'] )
+			&& preg_match( '/(\d+)daysAgo/', (string) $request['dateRanges'][0]['startDate'], $m ) ) {
+			$days = max( 1, (int) $m[1] );
 		}
 
 		$rows = array();
 
-		if ( $is_date ) {
-			// Mock past days sequence
-			for ( $i = 7; $i >= 1; $i-- ) {
-				$date_str = gmdate( 'Ymd', strtotime( "-{$i} days" ) );
-				$views = wp_rand( 1500, 3000 );
-				$users = wp_rand( 800, 1500 );
-				
-				$rows[] = array(
-					'dimensionValues' => array( array( 'value' => $date_str ) ),
+		if ( $has_dim( 'date' ) ) {
+			// Daily trend: mild upward drift across the window with weekend dips.
+			for ( $i = $days; $i >= 1; $i-- ) {
+				$ts             = strtotime( "-{$i} days" );
+				$is_weekend     = in_array( (int) gmdate( 'N', $ts ), array( 6, 7 ), true );
+				$progress       = ( $days - $i ) / max( 1, $days );
+				$weekend_factor = $is_weekend ? 0.65 : 1.0;
+				$views          = (int) round( ( 1800 + $progress * 700 ) * $weekend_factor ) + wp_rand( -120, 120 );
+				$views          = max( 50, $views );
+				$users          = max( 20, (int) round( $views * 0.63 ) + wp_rand( -30, 30 ) );
+				$rows[]         = array(
+					'dimensionValues' => array( array( 'value' => gmdate( 'Ymd', $ts ) ) ),
 					'metricValues'    => array(
 						array( 'value' => (string) $views ),
 						array( 'value' => (string) $users ),
+						array( 'value' => (string) ( wp_rand( 34, 52 ) / 100 ) ),
+						array( 'value' => (string) wp_rand( 95, 230 ) ),
 					),
 				);
 			}
-		} elseif ( $is_pagePath ) {
-			$pages = array( '/', '/about', '/blog', '/contact', '/services' );
-			foreach ( $pages as $page ) {
+		} elseif ( $has_dim( 'pagePath' ) ) {
+			// Descending by views to match the real orderBys the dashboard requests.
+			$pages = array(
+				'/'                     => 5200,
+				'/blog'                 => 3100,
+				'/products'             => 2400,
+				'/about'                => 1500,
+				'/contact'              => 1100,
+				'/pricing'              => 980,
+				'/blog/getting-started' => 760,
+				'/services'             => 640,
+			);
+			foreach ( $pages as $path => $views ) {
+				$views  = max( 20, $views + wp_rand( -80, 120 ) );
 				$rows[] = array(
-					'dimensionValues' => array( array( 'value' => $page ) ),
+					'dimensionValues' => array( array( 'value' => $path ) ),
 					'metricValues'    => array(
-						array( 'value' => (string) wp_rand( 100, 1500 ) ),
-						array( 'value' => (string) wp_rand( 50, 800 ) ),
-						array( 'value' => (string) ( wp_rand( 20, 65 ) / 100 ) ),
-						array( 'value' => (string) wp_rand( 30, 240 ) ),
+						array( 'value' => (string) $views ),
+						array( 'value' => (string) (int) round( $views * ( wp_rand( 55, 72 ) / 100 ) ) ),
+						array( 'value' => (string) ( wp_rand( 28, 66 ) / 100 ) ),
+						array( 'value' => (string) wp_rand( 45, 260 ) ),
 					),
 				);
 			}
-		} elseif ( $is_sessionSource ) {
-			$sources = array( 'google', 'direct', 'bing', 'facebook', 'newsletter' );
-			foreach ( $sources as $src ) {
+		} elseif ( $has_dim( 'sessionDefaultChannelGroup' ) || $has_dim( 'sessionSource' ) ) {
+			$channels = array(
+				'Organic Search' => 3400,
+				'Direct'         => 2200,
+				'Organic Social' => 1500,
+				'Referral'       => 950,
+				'Paid Search'    => 780,
+				'Email'          => 640,
+			);
+			foreach ( $channels as $label => $users ) {
 				$rows[] = array(
-					'dimensionValues' => array( array( 'value' => $src ) ),
-					'metricValues'    => array( array( 'value' => (string) wp_rand( 200, 2000 ) ) ),
+					'dimensionValues' => array( array( 'value' => $label ) ),
+					'metricValues'    => array( array( 'value' => (string) max( 20, $users + wp_rand( -100, 150 ) ) ) ),
 				);
 			}
-		} elseif ( $is_device ) {
-			$devices = array( 'desktop', 'mobile', 'tablet' );
-			foreach ( $devices as $dev ) {
+		} elseif ( $has_dim( 'deviceCategory' ) ) {
+			$devices = array(
+				'desktop' => 4200,
+				'mobile'  => 3600,
+				'tablet'  => 620,
+			);
+			foreach ( $devices as $dev => $users ) {
 				$rows[] = array(
 					'dimensionValues' => array( array( 'value' => $dev ) ),
-					'metricValues'    => array( array( 'value' => (string) wp_rand( 200, 3000 ) ) ),
+					'metricValues'    => array( array( 'value' => (string) max( 20, $users + wp_rand( -150, 150 ) ) ) ),
 				);
 			}
 		} else {
-			// Mock dashboard totals row
+			// Totals row, scaled to the window length.
+			$views  = max( 500, (int) round( $days * 2100 ) + wp_rand( -500, 500 ) );
+			$users  = (int) round( $views * 0.55 );
 			$rows[] = array(
 				'dimensionValues' => array(),
 				'metricValues'    => array(
-					array( 'value' => '12480' ), // screenPageViews
-					array( 'value' => '6850' ),  // activeUsers
-					array( 'value' => '0.384' ), // bounceRate (38.4%)
-					array( 'value' => '165' ),   // averageSessionDuration (165s)
+					array( 'value' => (string) $views ),                       // screenPageViews
+					array( 'value' => (string) $users ),                       // activeUsers
+					array( 'value' => (string) ( wp_rand( 36, 46 ) / 100 ) ),  // bounceRate
+					array( 'value' => (string) wp_rand( 150, 210 ) ),          // averageSessionDuration
 				),
 			);
 		}

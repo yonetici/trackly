@@ -12,6 +12,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', dirname( __DIR__ ) . '/' );
 }
 
+// Common WordPress time constants used across the plugin.
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+	define( 'MINUTE_IN_SECONDS', 60 );
+}
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
+	define( 'HOUR_IN_SECONDS', 3600 );
+}
+if ( ! defined( 'WEEK_IN_SECONDS' ) ) {
+	define( 'WEEK_IN_SECONDS', 604800 );
+}
+
 // Mock plugin directory helpers required by trackly.php
 if ( ! function_exists( 'plugin_dir_path' ) ) {
 	function plugin_dir_path( $file ) {
@@ -29,6 +40,7 @@ global $wpdb;
 class wpdb {
 	public $prefix = 'wp_';
 	public $last_insert = array();
+	public $insert_id = 1;
 	public function prepare( $query, ...$args ) {
 		return vsprintf( str_replace( '%s', "'%s'", $query ), $args );
 	}
@@ -100,10 +112,34 @@ function update_option( $option, $value, $autoload = null ) {
 	$mock_options[ $option ] = $value;
 	return true;
 }
+function add_option( $option, $value = '', $deprecated = '', $autoload = 'yes' ) {
+	global $mock_options;
+	// Mirror WordPress semantics: fail if the option already exists (used by the atomic lock).
+	if ( isset( $mock_options[ $option ] ) ) {
+		return false;
+	}
+	$mock_options[ $option ] = $value;
+	return true;
+}
 function delete_option( $option ) {
 	global $mock_options;
 	unset( $mock_options[ $option ] );
 	return true;
+}
+function wp_rand( $min = 0, $max = 0 ) {
+	return random_int( $min, $max );
+}
+function current_time( $type = 'mysql' ) {
+	return ( 'timestamp' === $type ) ? time() : gmdate( 'Y-m-d H:i:s' );
+}
+function home_url( $path = '' ) {
+	return 'http://example.com' . $path;
+}
+function wp_parse_url( $url, $component = -1 ) {
+	return wp_parse_url_native( $url, $component );
+}
+function wp_parse_url_native( $url, $component ) {
+	return ( -1 === $component ) ? parse_url( $url ) : parse_url( $url, $component );
 }
 
 function get_transient( $transient ) {
@@ -157,6 +193,9 @@ function wp_unschedule_event( $timestamp, $hook, $args = array(), $wp_error = fa
 	return true;
 }
 function wp_remote_get( $url, $args = array() ) {
+	return array();
+}
+function wp_remote_post( $url, $args = array() ) {
 	return array();
 }
 function wp_remote_retrieve_response_code( $response ) {

@@ -3,22 +3,26 @@ Contributors: ridvan
 Tags: analytics, ga4, heatmaps, dashboard, visitor-tracking
 Requires at least: 6.0
 Tested up to: 7.0
-Requires PHP: 8.0
+Requires PHP: 8.1
 Stable tag: 1.0.0
 License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A modern Google Analytics 4 dashboard and click heatmap tracker client for WordPress with predictive statistical insights.
+A modern Google Analytics 4 dashboard and local click heatmap tracker for WordPress with statistical anomaly insights.
 
 == Description ==
 
-Trackly is a GDPR-compliant, high-performance plugin that brings Google Analytics 4 reports and click heatmaps directly to your WordPress website. It features a premium administrative analytics dashboard, active traffic and device category metrics, responsive predictive local click heatmaps, machine learning-powered anomaly insights, and a visual GA4 event builder.
+MetricPulse is a GDPR-conscious, high-performance plugin that brings Google Analytics 4 reports and local click heatmaps directly to your WordPress website. It features a clean administrative analytics dashboard, active traffic and device category metrics, a local click heatmap, standard-deviation based anomaly insights, and a visual GA4 event builder.
 
-This plugin is designed from the ground up for strict performance and security. Standard visitors only download a lightweight, vanilla JavaScript tracker under 5KB (with zero jQuery or external dependencies), while heavy stats overlay interfaces are loaded exclusively for logged-in administrators.
+This plugin is designed for strict performance and security. Standard visitors only download a lightweight, vanilla JavaScript tracker under 5KB (with zero jQuery or external dependencies), while the heavier stats overlay interface is loaded exclusively for logged-in administrators. The plugin bundles its own fonts and libraries and makes no third-party front-end requests.
+
+= A note on "insights" =
+
+The anomaly insights are produced by classic descriptive statistics (mean and standard deviation over the reporting window), not machine learning. They flag traffic and bounce-rate values that deviate significantly from the recent average.
 
 = External Services Integration =
 
-In compliance with WordPress.org Guidelines, please note that Trackly connects to the following external services to deliver its core functionality:
+In compliance with WordPress.org Guidelines, please note that MetricPulse connects to the following external services to deliver its core functionality:
 
 1. **Google Analytics 4 (GA4) API** (https://analyticsdata.googleapis.com)
    - **Purpose**: Retrieves your property's reporting statistics (views, users, bounce rate, sessions, traffic sources, and devices) to display them in interactive charts on the admin dashboard.
@@ -30,9 +34,9 @@ In compliance with WordPress.org Guidelines, please note that Trackly connects t
 
 == Installation ==
 
-1. Upload the plugin files to the `/wp-content/plugins/trackly` directory, or install the plugin through the WordPress plugins screen directly.
+1. Upload the plugin files to the `/wp-content/plugins/metricpulse` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress.
-3. Configure your GA4 Property ID and Service Account JSON credentials under the Settings menu.
+3. Configure your GA4 Property ID and Service Account JSON credentials under the Settings menu, or leave Demo Mode enabled to preview the interface with mock data.
 
 == Frequently Asked Questions ==
 
@@ -40,7 +44,13 @@ In compliance with WordPress.org Guidelines, please note that Trackly connects t
 Yes! Cloudflare and reverse proxy whitelists support both IPv4 and IPv6 subnet ranges natively.
 
 = Is the click tracking GDPR-compliant? =
-Absolutely. The click telemetry data is completely anonymized, stored in your own local database, and automatically deleted after 30 days.
+The click telemetry contains no personal data (no IP address, no user identifiers) — only the page path, the clicked element, and normalized click coordinates. It is stored in your own local database and automatically deleted after 30 days. By default the tracker starts in strict opt-in mode and waits for consent from a supported consent plugin (Complianz, Borlabs, CookieLawInfo, or Google Consent Mode v2); you can relax this in Settings.
+
+= What happens to my data when I uninstall? =
+By default nothing is deleted, so you can safely reinstall. If you enable "Delete all data on uninstall" in Settings, deleting the plugin will permanently drop the click table and remove all options.
+
+= Do I need Google Analytics installed for the Event Builder? =
+Yes. The Event Builder maps clicks to GA4 events via gtag. Your site must already load the GA4 / gtag snippet (for example via Site Kit or a manual tag) for these events to be sent.
 
 == Screenshots ==
 
@@ -49,7 +59,7 @@ Absolutely. The click telemetry data is completely anonymized, stored in your ow
 
 == Privacy Policy ==
 
-Trackly respects user privacy and complies with GDPR. Telemetry data is recorded locally on custom database tables, contains no personally identifiable information (PII), and is automatically purged after 30 days.
+MetricPulse respects user privacy and complies with GDPR. Telemetry data is recorded locally on custom database tables, contains no personally identifiable information (PII), and is automatically purged after 30 days.
 
 == Upgrade Notice ==
 

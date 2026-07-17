@@ -1,15 +1,21 @@
 {
-    "name": "trackly/trackly",
-    "description": "Google Analytics 4 dashboard and click heatmap tracker client for WordPress with statistical anomaly detection.",
+    "name": "metricpulse/metricpulse",
+    "description": "Google Analytics 4 dashboard and local click heatmap tracker for WordPress with statistical anomaly detection.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "minimum-stability": "stable",
     "require": {
-        "php": ">=8.0"
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
     },
     "autoload": {
         "psr-4": {
             "Trackly\\": ""
         }
+    },
+    "scripts": {
+        "test": "phpunit"
     }
 }
