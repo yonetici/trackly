@@ -128,11 +128,11 @@ class Admin {
 		}
 
 		// Enqueue Localized ApexCharts (No longer loading from CDN)
-		wp_enqueue_script( 'apexcharts', TRACKLY_URL . 'admin/js/vendor/apexcharts.min.js', array(), '3.41.0', true );
+		wp_enqueue_script( 'apexcharts', TRACKLY_URL . 'Admin/js/vendor/apexcharts.min.js', array(), '3.41.0', true );
 
 		// Local Admin CSS & JS (Minified)
-		wp_enqueue_style( $this->plugin_name . '-admin-css', TRACKLY_URL . 'admin/css/trackly-admin.min.css', array(), $this->version );
-		wp_enqueue_script( $this->plugin_name . '-admin-js', TRACKLY_URL . 'admin/js/trackly-admin.min.js', array( 'jquery', 'apexcharts' ), $this->version, true );
+		wp_enqueue_style( $this->plugin_name . '-admin-css', TRACKLY_URL . 'Admin/css/trackly-admin.min.css', array(), $this->version );
+		wp_enqueue_script( $this->plugin_name . '-admin-js', TRACKLY_URL . 'Admin/js/trackly-admin.min.js', array( 'jquery', 'apexcharts' ), $this->version, true );
 
 		// Localize Script for REST API URL & Nonce
 		wp_localize_script( $this->plugin_name . '-admin-js', 'tracklyData', array(
