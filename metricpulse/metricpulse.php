@@ -1,11 +1,13 @@
 <?php
 /**
  * Plugin Name:       MetricPulse
+ * Plugin URI:        https://www.ridvanbilgin.com/2026/07/metricpulse-wordpress-ga4-analytics-plugin.html
  * Description:       A modern Google Analytics 4 dashboard and page-level statistics client for WordPress with local click heatmaps and statistical anomaly insights.
  * Version:           1.0.0
  * Requires at least: 6.0
  * Requires PHP:      8.1
- * Author:            MetricPulse
+ * Author:            Rıdvan Bilgin
+ * Author URI:        https://ridvanbilgin.com
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       metricpulse

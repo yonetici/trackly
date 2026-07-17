@@ -16,6 +16,8 @@ MetricPulse is a GDPR-conscious, high-performance plugin that brings Google Anal
 
 All reports are fetched with batched, cached GA4 Data API calls (respecting the API's 5-reports-per-batch limit) and high-cardinality reports are bounded with ordering and row limits to stay within quota.
 
+Introduction and full feature overview: https://www.ridvanbilgin.com/2026/07/metricpulse-wordpress-ga4-analytics-plugin.html
+
 This plugin is designed for strict performance and security. Standard visitors only download a lightweight, vanilla JavaScript tracker under 5KB (with zero jQuery or external dependencies), while the heavier stats overlay interface is loaded exclusively for logged-in administrators. The plugin bundles its own fonts and libraries and makes no third-party front-end requests.
 
 = A note on "insights" =
