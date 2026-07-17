@@ -87,6 +87,7 @@ class HeatmapService {
 						'type'        => 'success',
 						'title'       => __( 'Significant Traffic Spike Detected', 'trackly' ),
 						'description' => sprintf(
+							/* translators: %s: standard deviations value */
 							__( 'Today\'s traffic is %s standard deviations above the 7-day average. Verify active promotion campaigns or organic search ranking spikes.', 'trackly' ),
 							$dev
 						),
@@ -96,6 +97,7 @@ class HeatmapService {
 						'type'        => 'warning',
 						'title'       => __( 'Significant Traffic Drop Detected', 'trackly' ),
 						'description' => sprintf(
+							/* translators: %s: standard deviations value */
 							__( 'Today\'s traffic is %s standard deviations below the 7-day average. Check for connection issues or broken landing pages.', 'trackly' ),
 							$dev
 						),
@@ -125,7 +127,8 @@ class HeatmapService {
 							'type'        => 'danger',
 							'title'       => __( 'High Bounce Rate Anomaly', 'trackly' ),
 							'description' => sprintf(
-								__( 'Page "%s" has a bounce rate of %s%% (%s standard deviations above average). We suggest reviewing the page layout, load speed, or call-to-actions.', 'trackly' ),
+								/* translators: 1: page path, 2: bounce rate percentage, 3: standard deviations value */
+								__( 'Page "%1$s" has a bounce rate of %2$s%% (%3$s standard deviations above average). We suggest reviewing the page layout, load speed, or call-to-actions.', 'trackly' ),
 								esc_html( $page_path ),
 								round( $anomaly['value'], 1 ),
 								$dev

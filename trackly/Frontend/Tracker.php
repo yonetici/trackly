@@ -79,6 +79,7 @@ class Tracker {
 		}
 
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
 			define( 'DONOTCACHEPAGE', true );
 		}
 		nocache_headers();
@@ -237,6 +238,7 @@ class Tracker {
 		<!-- Trackly Custom GA4 Tracking Events -->
 		<script type="text/javascript">
 			document.addEventListener('DOMContentLoaded', function() {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				const customEvents = <?php echo $json_events; ?>;
 				if (!customEvents || !Array.isArray(customEvents)) return;
 

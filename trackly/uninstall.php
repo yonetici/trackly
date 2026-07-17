@@ -14,7 +14,7 @@ wp_clear_scheduled_hook( 'trackly_daily_cleanup' );
 wp_clear_scheduled_hook( 'trackly_weekly_ip_refresh' );
 
 // 2. Delete Options & Locks
-$options = array(
+$trackly_options = array(
 	'trackly_demo_mode',
 	'trackly_property_id',
 	'trackly_credentials',
@@ -27,23 +27,31 @@ $options = array(
 	'trackly_ip_refresh_lock',
 );
 
-foreach ( $options as $option ) {
-	delete_option( $option );
+foreach ( $trackly_options as $trackly_option ) {
+	delete_option( $trackly_option );
 }
 
 global $wpdb;
 // Clean up all options matching trackly_
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'trackly_%'" );
 
 // 3. Clear Transients
 delete_transient( 'trackly_access_token' );
 delete_transient( 'trackly_realtime_cache' );
 
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_trackly_%'" );
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_trackly_%'" );
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_trackly_b_%'" );
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_trackly_b_%'" );
 
 // 4. Drop Custom Table
-$table_name = $wpdb->prefix . 'trackly_clicks';
-$wpdb->query( "DROP TABLE IF EXISTS $table_name" );
+$trackly_table_name = $wpdb->prefix . 'trackly_clicks';
+if ( preg_match( '/^[a-zA-Z0-9_]+$/', $trackly_table_name ) ) {
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+	$wpdb->query( "DROP TABLE IF EXISTS $trackly_table_name" );
+}

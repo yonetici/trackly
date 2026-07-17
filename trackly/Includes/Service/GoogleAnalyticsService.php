@@ -29,8 +29,10 @@ class GoogleAnalyticsService {
 		delete_transient( self::REALTIME_KEY );
 
 		global $wpdb;
-		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_" . self::BATCH_PREFIX . "%'" );
-		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_" . self::BATCH_PREFIX . "%'" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", '_transient_' . self::BATCH_PREFIX . '%' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", '_transient_timeout_' . self::BATCH_PREFIX . '%' ) );
 	}
 
 	/**
@@ -105,7 +107,8 @@ class GoogleAnalyticsService {
 		}
 
 		if ( isset( $_SERVER['TRACKLY_GA_JSON'] ) && ! empty( $_SERVER['TRACKLY_GA_JSON'] ) ) {
-			return $_SERVER['TRACKLY_GA_JSON'];
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			return wp_unslash( $_SERVER['TRACKLY_GA_JSON'] );
 		}
 
 		$env_val = getenv( 'TRACKLY_GA_JSON' );
@@ -297,7 +300,7 @@ class GoogleAnalyticsService {
 		}
 
 		if ( $this->is_demo_mode() ) {
-			$mock_users = rand( 12, 35 );
+			$mock_users = wp_rand( 12, 35 );
 			set_transient( self::REALTIME_KEY, $mock_users, 20 ); // Realtime cache 20 seconds
 			return $mock_users;
 		}
@@ -380,9 +383,9 @@ class GoogleAnalyticsService {
 		if ( $is_date ) {
 			// Mock past days sequence
 			for ( $i = 7; $i >= 1; $i-- ) {
-				$date_str = date( 'Ymd', strtotime( "-{$i} days" ) );
-				$views = rand( 1500, 3000 );
-				$users = rand( 800, 1500 );
+				$date_str = gmdate( 'Ymd', strtotime( "-{$i} days" ) );
+				$views = wp_rand( 1500, 3000 );
+				$users = wp_rand( 800, 1500 );
 				
 				$rows[] = array(
 					'dimensionValues' => array( array( 'value' => $date_str ) ),
@@ -398,10 +401,10 @@ class GoogleAnalyticsService {
 				$rows[] = array(
 					'dimensionValues' => array( array( 'value' => $page ) ),
 					'metricValues'    => array(
-						array( 'value' => (string) rand( 100, 1500 ) ),
-						array( 'value' => (string) rand( 50, 800 ) ),
-						array( 'value' => (string) ( rand( 20, 65 ) / 100 ) ),
-						array( 'value' => (string) rand( 30, 240 ) ),
+						array( 'value' => (string) wp_rand( 100, 1500 ) ),
+						array( 'value' => (string) wp_rand( 50, 800 ) ),
+						array( 'value' => (string) ( wp_rand( 20, 65 ) / 100 ) ),
+						array( 'value' => (string) wp_rand( 30, 240 ) ),
 					),
 				);
 			}
@@ -410,7 +413,7 @@ class GoogleAnalyticsService {
 			foreach ( $sources as $src ) {
 				$rows[] = array(
 					'dimensionValues' => array( array( 'value' => $src ) ),
-					'metricValues'    => array( array( 'value' => (string) rand( 200, 2000 ) ) ),
+					'metricValues'    => array( array( 'value' => (string) wp_rand( 200, 2000 ) ) ),
 				);
 			}
 		} elseif ( $is_device ) {
@@ -418,7 +421,7 @@ class GoogleAnalyticsService {
 			foreach ( $devices as $dev ) {
 				$rows[] = array(
 					'dimensionValues' => array( array( 'value' => $dev ) ),
-					'metricValues'    => array( array( 'value' => (string) rand( 200, 3000 ) ) ),
+					'metricValues'    => array( array( 'value' => (string) wp_rand( 200, 3000 ) ) ),
 				);
 			}
 		} else {

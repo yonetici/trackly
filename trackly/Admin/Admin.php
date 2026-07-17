@@ -147,6 +147,7 @@ class Admin {
 	 */
 	public function display_plugin_admin_page() {
 		// Clear GA transient cache if settings just updated & verify authority
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['settings-updated'] ) && current_user_can( 'manage_options' ) ) {
 			Api::flush_cache();
 		}
@@ -426,14 +427,14 @@ class Admin {
 	 */
 	public function check_public_click_permissions( $request ) {
 		// 1. Block common web crawlers and scrapers via User-Agent to prevent database spam
-		$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : '';
+		$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
 		if ( preg_match( '/Googlebot|bingbot|Slurp|Baiduspider|YandexBot|DuckDuckBot|facebookexternalhit|LinkedInBot|Lighthouse|HeadlessChrome/i', $user_agent ) ) {
 			return false;
 		}
 
 		// 2. Prevent Cross-Origin click logging by verifying that Origin or Referer header matches the host domain
-		$origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( $_SERVER['HTTP_ORIGIN'] ) : '';
-		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( $_SERVER['HTTP_REFERER'] ) : '';
+		$origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
 		$host = wp_parse_url( home_url(), PHP_URL_HOST );
 
 		if ( ! empty( $origin ) ) {
@@ -457,7 +458,7 @@ class Admin {
 	 * Robust client IP retriever with Cloudflare and Nginx reverse proxy whitelisting (IPv4 & IPv6 support).
 	 */
 	private function get_ip_address() {
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( $_SERVER['REMOTE_ADDR'] ) : '0.0.0.0';
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '0.0.0.0';
 
 		$cached_proxies = get_option( 'trackly_cf_proxies', array() );
 		$default_proxies = ! empty( $cached_proxies ) ? $cached_proxies : array(
@@ -493,7 +494,8 @@ class Admin {
 			if ( $is_trusted ) {
 				foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP' ) as $header ) {
 					if ( ! empty( $_SERVER[ $header ] ) ) {
-						$ips = explode( ',', $_SERVER[ $header ] );
+						// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+						$ips = explode( ',', wp_unslash( $_SERVER[ $header ] ) );
 						$client_ip = trim( $ips[0] );
 						if ( filter_var( $client_ip, FILTER_VALIDATE_IP ) !== false ) {
 							return $client_ip;

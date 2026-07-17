@@ -129,6 +129,7 @@ function esc_url_raw( $url ) {
 	return $url;
 }
 function sanitize_text_field( $str ) {
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
 	return strip_tags( $str );
 }
 function wp_unslash( $str ) {
@@ -138,6 +139,7 @@ function __( $text, $domain = 'default' ) {
 	return $text;
 }
 function _e( $text, $domain = 'default' ) {
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo $text;
 }
 

@@ -74,6 +74,7 @@ class Database {
 		try {
 			return self::get_repository()->log_click( $data );
 		} catch ( \Exception $e ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( '[Trackly] Click logging failure: ' . $e->getMessage() );
 			return false;
 		}
@@ -86,6 +87,7 @@ class Database {
 		try {
 			return self::get_repository()->get_clicks_for_page( $page_url );
 		} catch ( \Exception $e ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( '[Trackly] Click retrieval failure: ' . $e->getMessage() );
 			return array();
 		}
@@ -118,6 +120,7 @@ class Database {
 		try {
 			self::get_repository()->daily_cleanup();
 		} catch ( \Exception $e ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( '[Trackly] Daily cleanup failure: ' . $e->getMessage() );
 		}
 	}

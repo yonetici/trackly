@@ -41,7 +41,7 @@ if ( file_exists( TRACKLY_PATH . 'vendor/autoload.php' ) ) {
 	} );
 }
 
-function activate_trackly() {
+function trackly_activate() {
 	// Dynamically register the weekly interval filter so wp_schedule_event can recognize it on activation (Step 1: Cron registration order)
 	add_filter( 'cron_schedules', array( 'Trackly\Includes\ProxyRegistry', 'add_cron_intervals' ) );
 
@@ -65,9 +65,9 @@ function activate_trackly() {
 		$editor_role->add_cap( 'trackly_view_dashboard' );
 	}
 }
-register_activation_hook( __FILE__, 'activate_trackly' );
+register_activation_hook( __FILE__, 'trackly_activate' );
 
-function deactivate_trackly() {
+function trackly_deactivate() {
 	Trackly\Includes\Database::unschedule_cleanup();
 
 	$admin_role = get_role( 'administrator' );
@@ -79,14 +79,15 @@ function deactivate_trackly() {
 		$editor_role->remove_cap( 'trackly_view_dashboard' );
 	}
 }
-register_deactivation_hook( __FILE__, 'deactivate_trackly' );
+register_deactivation_hook( __FILE__, 'trackly_deactivate' );
 
 // Run the plugin
-function run_trackly() {
+function trackly_run() {
+	// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound
 	load_plugin_textdomain( 'trackly', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 	$plugin = new Trackly\Includes\Core();
 	$plugin->run();
 }
-add_action( 'plugins_loaded', 'run_trackly' );
+add_action( 'plugins_loaded', 'trackly_run' );
 
