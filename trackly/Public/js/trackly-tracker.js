@@ -105,6 +105,20 @@
 	}
 
 	function initTracker() {
+		// Teardown existing listeners to prevent leaks if re-initialized (Step 5: Memory Leak Protection)
+		if ( typeof window.tracklyTrackerAbort === 'function' ) {
+			try {
+				window.tracklyTrackerAbort();
+			} catch(e) {}
+		}
+
+		const controller = new AbortController();
+		const signalOption = { signal: controller.signal };
+
+		window.tracklyTrackerAbort = function() {
+			controller.abort();
+		};
+
 		document.addEventListener('click', function(e) {
 			// Do not log clicks inside the admin floating bar
 			if ( e.target.closest('#trackly-stats-bar-wrapper') ) {
@@ -146,15 +160,15 @@
 			if ( clicksQueue.length >= 3 ) {
 				flushClicks();
 			}
-		});
+		}, signalOption);
 
 		// Flush remaining clicks on page hide or exit
-		window.addEventListener('pagehide', flushClicks);
+		window.addEventListener('pagehide', flushClicks, signalOption);
 		window.addEventListener('visibilitychange', function() {
 			if ( document.visibilityState === 'hidden' ) {
 				flushClicks();
 			}
-		});
+		}, signalOption);
 	}
 
 	function flushClicks() {

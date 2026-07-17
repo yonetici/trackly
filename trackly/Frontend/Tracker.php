@@ -54,8 +54,8 @@ class Tracker {
 		);
 		wp_add_inline_script( $this->plugin_name . '-tracker-js', 'const tracklyTrackerData = ' . wp_json_encode( $tracker_data ) . ';', 'before' );
 
-		// 2. Load heavy admin panel JS/CSS ONLY for logged-in administrators (Core Web Vitals Optimisation, Minified)
-		if ( current_user_can( 'manage_options' ) ) {
+		// 2. Load heavy admin panel JS/CSS ONLY for users with dashboard view capabilities (Core Web Vitals Optimisation, Minified)
+		if ( current_user_can( 'trackly_view_dashboard' ) || current_user_can( 'manage_options' ) ) {
 			wp_enqueue_style( $this->plugin_name . '-public-css', TRACKLY_URL . 'Public/css/trackly-public.min.css', array(), $this->version );
 			wp_enqueue_script( $this->plugin_name . '-public-js', TRACKLY_URL . 'Public/js/trackly-public.min.js', array( 'jquery' ), $this->version, true );
 
@@ -74,7 +74,7 @@ class Tracker {
 	 * Render the gorgeous glassmorphism overlay bar in the footer for administrators.
 	 */
 	public function render_floating_stats_bar() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( 'trackly_view_dashboard' ) && ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 

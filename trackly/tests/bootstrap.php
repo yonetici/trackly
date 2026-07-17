@@ -75,8 +75,21 @@ $mock_transients = array();
 // Mock WordPress Core Functions
 function add_action( $hook, $callback, $priority = 10, $args = 1 ) { return true; }
 function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { return true; }
+function do_action( $hook, ...$args ) { return; }
+function apply_filters( $hook, $value, ...$args ) { return $value; }
 function register_activation_hook( $file, $callback ) { return true; }
 function register_deactivation_hook( $file, $callback ) { return true; }
+function wp_clear_scheduled_hook( $hook ) { return true; }
+function plugin_basename( $file ) { return basename( $file ); }
+function load_plugin_textdomain( $domain, $deprecated = false, $plugin_rel_path = false ) { return true; }
+
+class WP_Role {
+	public function add_cap( $cap, $grant = true ) {}
+	public function remove_cap( $cap ) {}
+}
+function get_role( $role ) {
+	return new WP_Role();
+}
 
 function get_option( $option, $default = false ) {
 	global $mock_options;

@@ -37,7 +37,6 @@ spl_autoload_register( function ( $class ) {
 	}
 } );
 
-// Activate / Deactivate hooks
 function activate_trackly() {
 	// Trigger DB table creation
 	Trackly\Includes\Database::create_tables();
@@ -48,16 +47,37 @@ function activate_trackly() {
 		$secure_key = wp_generate_password( 64, true, true );
 		update_option( 'trackly_secure_salt', $secure_key, 'no' ); // Saved with autoload=no
 	}
+
+	// Grant custom capabilities for dashboards access control (Step 4: Capabilities control)
+	$admin_role = get_role( 'administrator' );
+	if ( $admin_role ) {
+		$admin_role->add_cap( 'trackly_view_dashboard' );
+	}
+	$editor_role = get_role( 'editor' );
+	if ( $editor_role ) {
+		$editor_role->add_cap( 'trackly_view_dashboard' );
+	}
 }
 register_activation_hook( __FILE__, 'activate_trackly' );
 
 function deactivate_trackly() {
 	Trackly\Includes\Database::unschedule_cleanup();
+
+	$admin_role = get_role( 'administrator' );
+	if ( $admin_role ) {
+		$admin_role->remove_cap( 'trackly_view_dashboard' );
+	}
+	$editor_role = get_role( 'editor' );
+	if ( $editor_role ) {
+		$editor_role->remove_cap( 'trackly_view_dashboard' );
+	}
 }
 register_deactivation_hook( __FILE__, 'deactivate_trackly' );
 
 // Run the plugin
 function run_trackly() {
+	load_plugin_textdomain( 'trackly', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+
 	$plugin = new Trackly\Includes\Core();
 	$plugin->run();
 }

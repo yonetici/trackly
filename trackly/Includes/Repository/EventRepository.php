@@ -55,7 +55,7 @@ class EventRepository {
 			click_y_pct float NOT NULL,
 			created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			PRIMARY KEY  (id),
-			KEY page_url (page_url(191)),
+			KEY page_url_created (page_url(191), created_at),
 			KEY created_at (created_at)
 		) $charset_collate;";
 
@@ -63,21 +63,31 @@ class EventRepository {
 		dbDelta( $sql );
 	}
 
-	/**
-	 * Insert click telemetry log.
-	 */
 	public function log_click( array $data ): bool {
+		// Filter raw click data before saving (Step 2: Custom Extensibility Hooks)
+		$data = apply_filters( 'trackly_before_log_click', $data );
+		if ( empty( $data ) || ! is_array( $data ) ) {
+			return false;
+		}
+
+		$insert_data = array(
+			'page_url'         => esc_url_raw( $data['page_url'] ),
+			'element_tag'      => sanitize_text_field( $data['element_tag'] ),
+			'element_selector' => sanitize_text_field( $data['element_selector'] ),
+			'click_x_pct'      => floatval( $data['click_x_pct'] ),
+			'click_y_pct'      => floatval( $data['click_y_pct'] ),
+		);
+
 		$result = $this->wpdb->insert(
 			$this->table_name,
-			array(
-				'page_url'         => esc_url_raw( $data['page_url'] ),
-				'element_tag'      => sanitize_text_field( $data['element_tag'] ),
-				'element_selector' => sanitize_text_field( $data['element_selector'] ),
-				'click_x_pct'      => floatval( $data['click_x_pct'] ),
-				'click_y_pct'      => floatval( $data['click_y_pct'] ),
-			),
+			$insert_data,
 			array( '%s', '%s', '%s', '%f', '%f' )
 		);
+
+		if ( $result ) {
+			// Trigger action after telemetry insertion
+			do_action( 'trackly_after_log_click', $this->wpdb->insert_id, $insert_data );
+		}
 
 		return (bool) $result;
 	}
@@ -96,7 +106,10 @@ class EventRepository {
 			ARRAY_A
 		);
 
-		return is_array( $results ) ? $results : array();
+		$results = is_array( $results ) ? $results : array();
+
+		// Filter retrieved click data (Step 2: Custom Extensibility Hooks)
+		return apply_filters( 'trackly_clicks_for_page', $results, $page_url );
 	}
 
 	/**

@@ -415,10 +415,10 @@ class Admin {
 	}
 
 	/**
-	 * Verify if current user is admin.
+	 * Verify if current user has permission to view reports.
 	 */
 	public function check_admin_permissions() {
-		return current_user_can( 'manage_options' );
+		return current_user_can( 'trackly_view_dashboard' ) || current_user_can( 'manage_options' );
 	}
 
 	/**
