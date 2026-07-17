@@ -1,6 +1,6 @@
 # Installation Guide
 
-Welcome to the installation documentation for **Trackly**. Follow these steps to set up your GA4 dashboard and click heatmap tracker client on your WordPress site.
+Welcome to the installation documentation for **MetricPulse**. Follow these steps to set up your GA4 dashboard and click heatmap tracker client on your WordPress site.
 
 ## 📋 Prerequisites
 1. A WordPress site running version **6.0 or higher**.
@@ -16,13 +16,13 @@ Welcome to the installation documentation for **Trackly**. Follow these steps to
 4. Once uploaded, click **Activate Plugin**.
 
 ### Step 2: Configure Google Cloud Service Account
-To fetch reporting statistics securely, Trackly utilizes a Google Cloud Service Account.
+To fetch reporting statistics securely, MetricPulse utilizes a Google Cloud Service Account.
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
 2. Create a new project or select an existing one.
 3. Enable the **Google Analytics Data API** for your project.
 4. Go to **IAM & Admin** -> **Service Accounts** -> **Create Service Account**.
-5. Give the account a name (e.g., `trackly-analytics-reader`) and click **Create and Continue**.
+5. Give the account a name (e.g., `metricpulse-analytics-reader`) and click **Create and Continue**.
 6. Once created, click on the service account, go to the **Keys** tab, and click **Add Key** -> **Create New Key**.
 7. Select **JSON** format, click **Create**, and save the file to your computer.
 
@@ -34,7 +34,7 @@ To fetch reporting statistics securely, Trackly utilizes a Google Cloud Service 
 5. Paste the email address of the service account and grant it **Viewer** permissions.
 
 ### Step 4: Configure Plugin Settings
-1. In your WordPress Admin Dashboard, navigate to **Settings** -> **Trackly**.
+1. In your WordPress Admin Dashboard, navigate to **Settings** -> **MetricPulse**.
 2. Retrieve your GA4 **Property ID** from Google Analytics Property Settings and paste it.
 3. Choose one of the following methods to input your Service Account JSON:
 
@@ -46,6 +46,6 @@ To fetch reporting statistics securely, Trackly utilizes a Google Cloud Service 
 #### Option B: wp-config.php (Enterprise Recommended)
 - For maximum security and lock-down, paste the JSON content directly as a constant inside your `wp-config.php` file:
 ```php
-define( 'TRACKLY_GA_JSON', '{"type": "service_account", "project_id": ...}' );
+define( 'METRICPULSE_GA_JSON', '{"type": "service_account", "project_id": ...}' );
 ```
-- When this constant is active, Trackly automatically bypasses database credential lookups.
+- When this constant is active, MetricPulse automatically bypasses database credential lookups.
