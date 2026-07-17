@@ -83,12 +83,12 @@ class Admin {
 			if ( ! empty( $decrypted ) && null !== json_decode( $decrypted ) ) {
 				return $value;
 			}
-			add_settings_error( 'trackly_credentials', 'invalid_json', esc_html( __( 'Invalid JSON format.', 'trackly' ) ) );
+			add_settings_error( 'trackly_credentials', 'invalid_json', __( 'Invalid JSON format.', 'trackly' ) );
 			return get_option( 'trackly_credentials', '' );
 		}
 
-		// Preserve actual key if user submitted placeholder masking star pattern
-		if ( isset( $decoded['private_key'] ) && strpos( $decoded['private_key'], '****' ) !== false ) {
+		// Preserve actual key if user submitted placeholder masking sentinel pattern
+		if ( isset( $decoded['private_key'] ) && $decoded['private_key'] === '___TRACKLY_MASKED_KEY___' ) {
 			$existing_encrypted = get_option( 'trackly_credentials', '' );
 			if ( ! empty( $existing_encrypted ) ) {
 				$existing_raw = Api::decrypt_data( $existing_encrypted );
@@ -138,6 +138,7 @@ class Admin {
 		wp_localize_script( $this->plugin_name . '-admin-js', 'tracklyData', array(
 			'rest_url'   => esc_url_raw( rest_url( 'trackly/v1' ) ),
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
+			'debug'      => defined( 'WP_DEBUG' ) && WP_DEBUG,
 		) );
 	}
 
@@ -162,7 +163,7 @@ class Admin {
 		if ( ! empty( $credentials_raw ) ) {
 			$creds_obj = json_decode( $credentials_raw, true );
 			if ( is_array( $creds_obj ) ) {
-				$creds_obj['private_key'] = '****************************************';
+				$creds_obj['private_key'] = '___TRACKLY_MASKED_KEY___';
 				$credentials = json_encode( $creds_obj, JSON_PRETTY_PRINT );
 			}
 		}
@@ -430,16 +431,21 @@ class Admin {
 			return false;
 		}
 
-		// 2. Prevent Cross-Origin click logging by verifying that Referer header matches the host domain (fail-closed)
+		// 2. Prevent Cross-Origin click logging by verifying that Origin or Referer header matches the host domain
+		$origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( $_SERVER['HTTP_ORIGIN'] ) : '';
 		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( $_SERVER['HTTP_REFERER'] ) : '';
-		if ( ! $referer ) {
-			return false;
-		}
-		
 		$host = wp_parse_url( home_url(), PHP_URL_HOST );
-		$referer_host = wp_parse_url( $referer, PHP_URL_HOST );
-		if ( $host !== $referer_host ) {
-			return false;
+
+		if ( ! empty( $origin ) ) {
+			$origin_host = wp_parse_url( $origin, PHP_URL_HOST );
+			if ( $host !== $origin_host ) {
+				return false;
+			}
+		} elseif ( ! empty( $referer ) ) {
+			$referer_host = wp_parse_url( $referer, PHP_URL_HOST );
+			if ( $host !== $referer_host ) {
+				return false;
+			}
 		}
 
 		// 3. Verify public telemetry CSRF nonce token
@@ -643,7 +649,7 @@ class Admin {
 	public function get_page_stats_callback( $request ) {
 		$url = esc_url_raw( $request->get_param( 'url' ) );
 		if ( empty( $url ) ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'URL parameter required.', 'trackly' ) ) ), 400 );
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'URL parameter required.', 'trackly' ) ), 400 );
 		}
 
 		$path = wp_parse_url( $url, PHP_URL_PATH );
@@ -651,34 +657,64 @@ class Admin {
 			$path = '/';
 		}
 
-		$report = Api::get_report( array(
-			'dateRanges'      => array( array( 'startDate' => '7daysAgo', 'endDate' => 'yesterday' ) ),
-			'dimensions'      => array( array( 'name' => 'pagePath' ) ),
-			'metrics'         => array(
-				array( 'name' => 'screenPageViews' ),
-				array( 'name' => 'activeUsers' ),
-				array( 'name' => 'bounceRate' ),
-				array( 'name' => 'averageSessionDuration' ),
-			),
-			'dimensionFilter' => array(
-				'filter' => array(
-					'fieldName' => 'pagePath',
-					'stringFilter' => array(
-						'matchType' => 'EXACT',
-						'value'     => $path,
+		$batch_requests = array(
+			// Query 1: Page Totals over the last 7 days
+			array(
+				'dateRanges'      => array( array( 'startDate' => '7daysAgo', 'endDate' => 'yesterday' ) ),
+				'dimensions'      => array( array( 'name' => 'pagePath' ) ),
+				'metrics'         => array(
+					array( 'name' => 'screenPageViews' ),
+					array( 'name' => 'activeUsers' ),
+					array( 'name' => 'bounceRate' ),
+					array( 'name' => 'averageSessionDuration' ),
+				),
+				'dimensionFilter' => array(
+					'filter' => array(
+						'fieldName' => 'pagePath',
+						'stringFilter' => array(
+							'matchType' => 'EXACT',
+							'value'     => $path,
+						),
 					),
 				),
 			),
-		) );
+			// Query 2: Daily trend breakdown for statistical anomaly checks
+			array(
+				'dateRanges'      => array( array( 'startDate' => '7daysAgo', 'endDate' => 'yesterday' ) ),
+				'dimensions'      => array( array( 'name' => 'date' ) ),
+				'metrics'         => array(
+					array( 'name' => 'screenPageViews' ),
+				),
+				'dimensionFilter' => array(
+					'filter' => array(
+						'fieldName' => 'pagePath',
+						'stringFilter' => array(
+							'matchType' => 'EXACT',
+							'value'     => $path,
+						),
+					),
+				),
+			),
+		);
 
-		if ( is_wp_error( $report ) ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => $report->get_error_message() ), 500 );
+		$batch_reports = Api::batch_run_reports( $batch_requests );
+
+		if ( is_wp_error( $batch_reports ) ) {
+			return new WP_REST_Response( array( 'success' => false, 'error' => $batch_reports->get_error_message() ), 500 );
 		}
 
+		$report       = isset( $batch_reports[0] ) ? $batch_reports[0] : array();
+		$daily_report = isset( $batch_reports[1] ) ? $batch_reports[1] : array();
+
+		// Generate standard-deviation based insights
+		$heatmap_service = new \Trackly\Includes\Service\HeatmapService();
+		$insights        = $heatmap_service->generate_statistical_insights( $daily_report, $report );
+
 		return new WP_REST_Response( array(
-			'success' => true,
-			'path'    => $path,
-			'report'  => $report,
+			'success'  => true,
+			'path'     => $path,
+			'report'   => $report,
+			'insights' => $insights,
 		), 200 );
 	}
 
@@ -693,14 +729,14 @@ class Admin {
 		if ( false === $clicks ) {
 			set_transient( $transient_key, 1, 60 );
 		} elseif ( $clicks >= 10 ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'Rate limit exceeded.', 'trackly' ) ) ), 429 );
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'Rate limit exceeded.', 'trackly' ) ), 429 );
 		} else {
 			set_transient( $transient_key, $clicks + 1, 60 );
 		}
 
 		$params = $request->get_json_params();
 		if ( empty( $params['page_url'] ) || ! isset( $params['click_x_pct'] ) || ! isset( $params['click_y_pct'] ) ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'Invalid click data.', 'trackly' ) ) ), 400 );
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'Invalid click data.', 'trackly' ) ), 400 );
 		}
 
 		$log_result = Database::log_click( array(
@@ -720,7 +756,7 @@ class Admin {
 	public function get_clicks_callback( $request ) {
 		$url = esc_url_raw( $request->get_param( 'url' ) );
 		if ( empty( $url ) ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'URL parameter required.', 'trackly' ) ) ), 400 );
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'URL parameter required.', 'trackly' ) ), 400 );
 		}
 
 		$clicks = Database::get_clicks_for_page( $url );
@@ -738,13 +774,13 @@ class Admin {
 	public function save_event_callback( $request ) {
 		$params = $request->get_json_params();
 		if ( empty( $params['selector'] ) || empty( $params['event_name'] ) ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'Selector and Event Name required.', 'trackly' ) ) ), 400 );
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'Selector and Event Name required.', 'trackly' ) ), 400 );
 		}
 
 		$selector = sanitize_text_field( $params['selector'] );
 		// Sanity check CSS selector syntax (blocks HTML tags, curly braces)
 		if ( preg_match( '/[<>\{\}]/i', $selector ) ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'Invalid CSS Selector payload.', 'trackly' ) ) ), 400 );
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'Invalid CSS Selector payload.', 'trackly' ) ), 400 );
 		}
 
 		$saved_events = get_option( 'trackly_custom_events', array() );
@@ -754,13 +790,13 @@ class Admin {
 
 		// Limit saved events to max 200 elements to prevent options database bloat
 		if ( count( $saved_events ) >= 200 ) {
-			return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'Maximum limit of 200 custom events reached.', 'trackly' ) ) ), 400 );
+			return new WP_REST_Response( array( 'success' => false, 'error' => __( 'Maximum limit of 200 custom events reached.', 'trackly' ) ), 400 );
 		}
 
 		// Prevent duplicate selectors
 		foreach ( $saved_events as $event ) {
 			if ( $event['selector'] === $selector ) {
-				return new WP_REST_Response( array( 'success' => false, 'error' => esc_html( __( 'This CSS selector is already registered.', 'trackly' ) ) ), 400 );
+				return new WP_REST_Response( array( 'success' => false, 'error' => __( 'This CSS selector is already registered.', 'trackly' ) ), 400 );
 			}
 		}
 

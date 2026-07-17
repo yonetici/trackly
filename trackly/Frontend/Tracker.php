@@ -44,7 +44,7 @@ class Tracker {
 		$require_consent = get_option( 'trackly_require_consent', 'no' ) === 'yes';
 
 		// 1. Zero-Footprint vanilla tracking engine loaded dynamically for all visitors (Minified)
-		wp_enqueue_script( $this->plugin_name . '-tracker-js', TRACKLY_URL . 'public/js/trackly-tracker.min.js', array(), $this->version, true );
+		wp_enqueue_script( $this->plugin_name . '-tracker-js', TRACKLY_URL . 'Public/js/trackly-tracker.min.js', array(), $this->version, true );
 		$tracker_data = array(
 			'rest_url'        => esc_url_raw( rest_url( 'trackly/v1' ) ),
 			'page_url'        => $current_url,
@@ -56,8 +56,8 @@ class Tracker {
 
 		// 2. Load heavy admin panel JS/CSS ONLY for logged-in administrators (Core Web Vitals Optimisation, Minified)
 		if ( current_user_can( 'manage_options' ) ) {
-			wp_enqueue_style( $this->plugin_name . '-public-css', TRACKLY_URL . 'public/css/trackly-public.min.css', array(), $this->version );
-			wp_enqueue_script( $this->plugin_name . '-public-js', TRACKLY_URL . 'public/js/trackly-public.min.js', array( 'jquery' ), $this->version, true );
+			wp_enqueue_style( $this->plugin_name . '-public-css', TRACKLY_URL . 'Public/css/trackly-public.min.css', array(), $this->version );
+			wp_enqueue_script( $this->plugin_name . '-public-js', TRACKLY_URL . 'Public/js/trackly-public.min.js', array( 'jquery' ), $this->version, true );
 
 			$public_data = array(
 				'rest_url'   => esc_url_raw( rest_url( 'trackly/v1' ) ),
@@ -176,7 +176,7 @@ class Tracker {
 						<p class="selector-notice description"><?php esc_html_e( 'Click the button, then hover over any button/link you wish to track on the page.', 'trackly' ); ?></p>
 					</div>
 
-					<div id="trackly-builder-form" style="display: none;">
+					<div id="trackly-builder-form" class="trackly-hidden">
 						<div class="trackly-p-form-group">
 							<label><?php esc_html_e( 'Selected Element:', 'trackly' ); ?></label>
 							<code id="trackly-selected-selector-display">div > a.btn</code>

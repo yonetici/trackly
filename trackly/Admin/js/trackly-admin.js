@@ -141,11 +141,15 @@
 					updatePagesTable(res.pages);
 					updateRealtimeValue(res.realtime_users);
 				} else {
-					console.error('GA Data retrieval failed: ', res.error);
+					if (typeof tracklyData !== 'undefined' && tracklyData.debug) {
+						console.error('GA Data retrieval failed: ', res.error);
+					}
 				}
 			},
 			error: function(err) {
-				console.error('AJAX Error: ', err);
+				if (typeof tracklyData !== 'undefined' && tracklyData.debug) {
+					console.error('AJAX Error: ', err);
+				}
 			}
 		});
 	}

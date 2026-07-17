@@ -42,9 +42,6 @@ function activate_trackly() {
 	// Trigger DB table creation
 	Trackly\Includes\Database::create_tables();
 	Trackly\Includes\Database::schedule_cleanup();
-	
-	// Fetch and populate Cloudflare proxy subnets immediately on activation
-	Trackly\Includes\Database::refresh_cf_ips();
 
 	// Generate a unique dynamic fallback encryption key if not exists (Enterprise Security)
 	if ( ! get_option( 'trackly_secure_salt' ) ) {

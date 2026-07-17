@@ -424,3 +424,8 @@
 	font-size: 12px;
 	display: none;
 }
+
+/* Utility classes */
+.trackly-hidden {
+	display: none;
+}

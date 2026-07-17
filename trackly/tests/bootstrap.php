@@ -4,15 +4,29 @@
  * Mocks necessary WordPress core components to run unit tests in isolation.
  */
 
-// Define basic constants
-define( 'ABSPATH', dirname( __DIR__ ) . '/' );
-define( 'TRACKLY_VERSION', '1.0.0' );
-define( 'TRACKLY_PATH', dirname( __DIR__ ) . '/' );
-define( 'TRACKLY_URL', 'http://example.com/wp-content/plugins/trackly/' );
+// Define WPINC to bypass trackly.php direct access check
+define( 'WPINC', true );
+
+// Define ABSPATH safely
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', dirname( __DIR__ ) . '/' );
+}
+
+// Mock plugin directory helpers required by trackly.php
+if ( ! function_exists( 'plugin_dir_path' ) ) {
+	function plugin_dir_path( $file ) {
+		return dirname( $file ) . '/';
+	}
+}
+if ( ! function_exists( 'plugin_dir_url' ) ) {
+	function plugin_dir_url( $file ) {
+		return 'http://example.com/wp-content/plugins/' . basename( dirname( $file ) ) . '/';
+	}
+}
 
 // Mock global variables
 global $wpdb;
-class Mock_WPDB {
+class wpdb {
 	public $prefix = 'wp_';
 	public $last_insert = array();
 	public function prepare( $query, ...$args ) {
@@ -32,7 +46,7 @@ class Mock_WPDB {
 		return true;
 	}
 }
-$wpdb = new Mock_WPDB();
+$wpdb = new wpdb();
 
 class WP_Error {
 	public $code;

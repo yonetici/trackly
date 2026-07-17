@@ -6,7 +6,8 @@
          verbose="true">
     <testsuites>
         <testsuite name="Trackly Unit Test Suite">
-            <directory>tests</directory>
+            <directory suffix=".php">tests</directory>
+            <exclude>tests/bootstrap.php</exclude>
         </testsuite>
     </testsuites>
 </phpunit>

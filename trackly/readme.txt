@@ -1,9 +1,9 @@
 === Trackly ===
-Contributors: trackly
-Tags: analytics, google analytics, ga4, heatmaps, visitor tracking, stats, dashboard, telemetry
+Contributors: ridvan
+Tags: analytics, ga4, heatmaps, dashboard, visitor-tracking
 Requires at least: 6.0
-Tested up to: 6.7
-Requires PHP: 7.4
+Tested up to: 6.9
+Requires PHP: 8.0
 Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -12,14 +12,21 @@ A modern Google Analytics 4 dashboard and click heatmap tracker client for WordP
 
 == Description ==
 
-Trackly is a GDPR-compliant, high-performance plugin that brings Google Analytics 4 reports and click heatmaps directly to your WordPress website.
+Trackly is a GDPR-compliant, high-performance plugin that brings Google Analytics 4 reports and click heatmaps directly to your WordPress website. It features a premium administrative analytics dashboard, active traffic and device category metrics, responsive local click heatmaps, and a visual GA4 event builder.
 
-Key Features:
-* **GDPR Compliance**: Integrates seamlessly with cookie consent plugins like Borlabs, Complianz, CLI, and Google Consent Mode v2.
-* **Service Account Integration**: Secure, server-side authentication using Google Cloud service account JSON credentials encrypted via AES-256-GCM.
-* **Click Heatmaps**: View coordinates of user clicks on any page using a native DocumentFragment canvas.
-* **Custom GA4 Event Builder**: Visually map and capture custom events on buttons or links on any webpage.
-* **Dynamic Proxy Whitelisting**: Automated weekly Cloudflare and reverse proxy range sync to avoid click log client IP blocking.
+This plugin is designed from the ground up for strict performance and security. Standard visitors only download a lightweight, vanilla JavaScript tracker under 5KB (with zero jQuery or external dependencies), while heavy stats overlay interfaces are loaded exclusively for logged-in administrators.
+
+= External Services Integration =
+
+In compliance with WordPress.org Guidelines, please note that Trackly connects to the following external services to deliver its core functionality:
+
+1. **Google Analytics 4 (GA4) API** (https://analyticsdata.googleapis.com)
+   - **Purpose**: Retrieves your property's reporting statistics (views, users, bounce rate, sessions, traffic sources, and devices) to display them in interactive charts on the admin dashboard.
+   - **Privacy Policy**: Google Privacy Policy can be found at https://policies.google.com/privacy
+
+2. **Cloudflare APIs** (https://www.cloudflare.com/ips-v4 and https://www.cloudflare.com/ips-v6)
+   - **Purpose**: Dynamically fetches and validates Cloudflare's public IPv4/IPv6 ranges once a week via cron to ensure secure client IP detection and prevent request spoofing.
+   - **Privacy Policy**: Cloudflare Privacy Policy can be found at https://www.cloudflare.com/privacypolicy
 
 == Installation ==
 
@@ -32,10 +39,22 @@ Key Features:
 = Does this plugin support IPv6? =
 Yes! Cloudflare and reverse proxy whitelists support both IPv4 and IPv6 subnet ranges natively.
 
+= Is the click tracking GDPR-compliant? =
+Absolutely. The click telemetry data is completely anonymized, stored in your own local database, and automatically deleted after 30 days.
+
 == Screenshots ==
 
-1. The main administrative analytics dashboard.
-2. Glassmorphic front-end client overlay displaying page statistics.
+1. The main administrative analytics dashboard displaying GA4 report statistics and interactive charts.
+2. Glassmorphic front-end client overlay displaying page-level analytics and click heatmap overlays.
+
+== Privacy Policy ==
+
+Trackly respects user privacy and complies with GDPR. Telemetry data is recorded locally on custom database tables, contains no personally identifiable information (PII), and is automatically purged after 30 days.
+
+== Upgrade Notice ==
+
+= 1.0.0 =
+Initial Release.
 
 == Changelog ==
 

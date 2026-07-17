@@ -120,93 +120,74 @@
 					const secs = duration % 60;
 					$('#trackly-p-duration').text(mins + ':' + (secs < 10 ? '0' : '') + secs);
 
-					generateAIInsights(views, users, bounce, duration);
+					renderStatisticalInsights(res.insights);
 				} else {
 					$('#trackly-p-views').text('0');
 					$('#trackly-p-users').text('0');
 					$('#trackly-p-bounce').text('0%');
 					$('#trackly-p-duration').text('0:00');
-					generateAIInsights(0, 0, 0, 0);
+					renderStatisticalInsights([]);
 				}
 			}
 		});
 	}
 
+	function escapeHtml(string) {
+		return String(string).replace(/[&<>"']/g, function(s) {
+			return {
+				'&': '&amp;',
+				'<': '&lt;',
+				'>': '&gt;',
+				'"': '&quot;',
+				"'": '&#39;'
+			}[s];
+		});
+	}
+
 	/**
-	 * Context-aware recommendations engine
+	 * Statistical anomalies reporting engine
 	 */
-	function generateAIInsights(views, users, bounce, duration) {
+	function renderStatisticalInsights(insights) {
 		const $insights = $('#trackly-ai-insights-content');
 		$insights.empty();
 
-		if (views === 0) {
+		if (!insights || insights.length === 0) {
 			$insights.append(`
 				<div class="ai-insight-item">
-					<span class="dashicons dashicons-warning ai-icon red"></span>
+					<span class="dashicons dashicons-info ai-icon cyan"></span>
 					<div class="ai-text">
-						<strong>Waiting for Data</strong>
-						<p>Not enough traffic data has been collected for this page yet. You can test with demo mode or verify your GA4 integration.</p>
+						<strong>Stable Page Performance</strong>
+						<p>All visitor traffic volumes and bounce rate patterns match normal statistical distributions for the current period.</p>
 					</div>
 				</div>
 			`);
 			return;
 		}
 
-		if (bounce > 0.55) {
-			$insights.append(`
-				<div class="ai-insight-item">
-					<span class="dashicons dashicons-flag ai-icon red"></span>
-					<div class="ai-text">
-						<strong>High Bounce Rate (%${(bounce * 100).toFixed(1)})</strong>
-						<p>Visitors are leaving the page quickly. Check if the content aligns with the page title, or place an engaging CTA at the bottom of the page.</p>
-					</div>
-				</div>
-			`);
-		} else {
-			$insights.append(`
-				<div class="ai-insight-item">
-					<span class="dashicons dashicons-yes-alt ai-icon cyan"></span>
-					<div class="ai-text">
-						<strong>Healthy Bounce Rate (%${(bounce * 100).toFixed(1)})</strong>
-						<p>Your visitors are eager to browse. Congratulations, the content is achieving its goal!</p>
-					</div>
-				</div>
-			`);
-		}
+		insights.forEach(function(insight) {
+			let iconClass = 'cyan';
+			let dashicon = 'dashicons-info';
+			if (insight.type === 'warning') {
+				iconClass = 'purple';
+				dashicon = 'dashicons-clock';
+			} else if (insight.type === 'danger') {
+				iconClass = 'red';
+				dashicon = 'dashicons-warning';
+			} else if (insight.type === 'success') {
+				iconClass = 'cyan';
+				dashicon = 'dashicons-yes-alt';
+			}
 
-		if (duration < 90) {
 			$insights.append(`
 				<div class="ai-insight-item">
-					<span class="dashicons dashicons-clock ai-icon purple"></span>
+					<span class="dashicons ${dashicon} ai-icon ${iconClass}"></span>
 					<div class="ai-text">
-						<strong>Low Time on Page (${duration}sn)</strong>
-						<p>Visitors might not be reading the page. Shorten the introductory paragraph and make the page more engaging with visuals.</p>
+						<strong>${escapeHtml(insight.title)}</strong>
+						<p>${escapeHtml(insight.description)}</p>
 					</div>
 				</div>
 			`);
-		} else {
-			$insights.append(`
-				<div class="ai-insight-item">
-					<span class="dashicons dashicons-clock ai-icon cyan"></span>
-					<div class="ai-text">
-						<strong>Great Time on Page (${Math.floor(duration/60)}dk ${duration%60}sn)</strong>
-						<p>Users are reading your content in detail. You can use this page to gather newsletter subscriptions.</p>
-					</div>
-				</div>
-			`);
-		}
-
-		if (views > 100) {
-			$insights.append(`
-				<div class="ai-insight-item">
-					<span class="dashicons dashicons-lightbulb ai-icon purple"></span>
-					<div class="ai-text">
-						<strong>Conversion Measurement Suggestion</strong>
-						<p>This page has been viewed ${views} times! Run the <strong>Event Builder</strong> in the adjacent tab to track buttons on the page.</p>
-					</div>
-				</div>
-			`);
-		}
+		});
 	}
 
 	/**

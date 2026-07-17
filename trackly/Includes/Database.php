@@ -2,7 +2,8 @@
 namespace Trackly\Includes;
 
 /**
- * Database and table management class.
+ * Facade class for Database operations.
+ * Delegates actual queries and table modifications to EventRepository.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -11,111 +12,68 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Database {
 
-	public static function init() {
+	/**
+	 * Get an instance of EventRepository.
+	 */
+	private static function get_repository(): \Trackly\Includes\Repository\EventRepository {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'trackly_clicks';
+		return new \Trackly\Includes\Repository\EventRepository( $wpdb, $table_name );
+	}
+
+	/**
+	 * Initialize hooks.
+	 */
+	public static function init(): void {
 		add_action( 'trackly_daily_cleanup', array( __CLASS__, 'daily_cleanup' ) );
-		add_action( 'trackly_weekly_ip_refresh', array( __CLASS__, 'refresh_cf_ips' ) );
-	}
-	}
-
-	public static function get_table_name() {
-		global $wpdb;
-		return $wpdb->prefix . 'trackly_clicks';
+		add_action( 'trackly_weekly_ip_refresh', array( 'Trackly\Includes\ProxyRegistry', 'refresh_cf_ips' ) );
+		add_filter( 'cron_schedules', array( 'Trackly\Includes\ProxyRegistry', 'add_cron_intervals' ) );
 	}
 
 	/**
-	 * Create the custom table for click heatmap tracking.
-	 * Includes v1.1 to v1.2 migration protection to prevent SQL Insert failures.
+	 * Get Custom Table Name.
 	 */
-	public static function create_tables() {
-		global $wpdb;
-		$table_name = self::get_table_name();
-
-		// Check if old columns exist (v1.1 migration protection)
-		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) ) {
-			$column_check_width = $wpdb->get_results( "SHOW COLUMNS FROM $table_name LIKE 'screen_width'" );
-			if ( ! empty( $column_check_width ) ) {
-				// Safely drop the screen_width column to avoid SQL failures without dropping the table
-				$wpdb->query( "ALTER TABLE $table_name DROP COLUMN screen_width" );
-			}
-			$column_check_height = $wpdb->get_results( "SHOW COLUMNS FROM $table_name LIKE 'screen_height'" );
-			if ( ! empty( $column_check_height ) ) {
-				// Safely drop the screen_height column
-				$wpdb->query( "ALTER TABLE $table_name DROP COLUMN screen_height" );
-			}
-		}
-
-		$charset_collate = $wpdb->get_charset_collate();
-
-		$sql = "CREATE TABLE $table_name (
-			id bigint(20) NOT NULL AUTO_INCREMENT,
-			page_url varchar(255) NOT NULL,
-			element_tag varchar(50) NOT NULL,
-			element_selector varchar(255) NOT NULL,
-			click_x_pct float NOT NULL,
-			click_y_pct float NOT NULL,
-			created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-			PRIMARY KEY  (id),
-			KEY page_url (page_url(191))
-		) $charset_collate;";
-
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-		dbDelta( $sql );
+	public static function get_table_name(): string {
+		return self::get_repository()->get_table_name();
 	}
 
 	/**
-	 * Log a click into the database.
+	 * Create Custom Tables.
 	 */
-	public static function log_click( $data ) {
-		global $wpdb;
-		$table_name = self::get_table_name();
-
-		return $wpdb->insert(
-			$table_name,
-			array(
-				'page_url'         => esc_url_raw( $data['page_url'] ),
-				'element_tag'      => sanitize_text_field( $data['element_tag'] ),
-				'element_selector' => sanitize_text_field( $data['element_selector'] ),
-				'click_x_pct'      => floatval( $data['click_x_pct'] ),
-				'click_y_pct'      => floatval( $data['click_y_pct'] ),
-			),
-			array( '%s', '%s', '%s', '%f', '%f' )
-		);
+	public static function create_tables(): void {
+		self::get_repository()->create_tables();
 	}
 
 	/**
-	 * Fetch clicks for a specific page URL.
+	 * Log Clicks.
 	 */
-	public static function get_clicks_for_page( $page_url ) {
-		global $wpdb;
-		$table_name = self::get_table_name();
+	public static function log_click( array $data ): bool {
+		return self::get_repository()->log_click( $data );
+	}
 
-		$clean_url = esc_url_raw( $page_url );
-
-		return $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT click_x_pct, click_y_pct, element_selector FROM $table_name WHERE page_url = %s ORDER BY created_at DESC LIMIT 1000",
-				$clean_url
-			),
-			ARRAY_A
-		);
+	/**
+	 * Retrieve Clicks.
+	 */
+	public static function get_clicks_for_page( string $page_url ): array {
+		return self::get_repository()->get_clicks_for_page( $page_url );
 	}
 
 	/**
 	 * Schedule the 30-day cleanup and weekly IP refresh cron jobs.
 	 */
-	public static function schedule_cleanup() {
+	public static function schedule_cleanup(): void {
 		if ( ! wp_next_scheduled( 'trackly_daily_cleanup' ) ) {
 			wp_schedule_event( time(), 'daily', 'trackly_daily_cleanup' );
 		}
 		if ( ! wp_next_scheduled( 'trackly_weekly_ip_refresh' ) ) {
-			wp_schedule_event( time(), 'weekly', 'trackly_weekly_ip_refresh' );
+			wp_schedule_event( time() + 60, 'weekly', 'trackly_weekly_ip_refresh' );
 		}
 	}
 
 	/**
 	 * Unschedule cleanup and IP refresh cron jobs.
 	 */
-	public static function unschedule_cleanup() {
+	public static function unschedule_cleanup(): void {
 		$timestamp = wp_next_scheduled( 'trackly_daily_cleanup' );
 		if ( $timestamp ) {
 			wp_unschedule_event( $timestamp, 'trackly_daily_cleanup' );
@@ -129,42 +87,7 @@ class Database {
 	/**
 	 * Clean up click data older than 30 days.
 	 */
-	public static function daily_cleanup() {
-		global $wpdb;
-		$table_name = self::get_table_name();
-		
-		$wpdb->query( "DELETE FROM $table_name WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)" );
-	}
-
-	/**
-	 * Dynamic weekly Cloudflare IP subnet ranges refresh from Cloudflare APIs.
-	 */
-	public static function refresh_cf_ips() {
-		$v4 = wp_remote_get( 'https://www.cloudflare.com/ips-v4' );
-		$v6 = wp_remote_get( 'https://www.cloudflare.com/ips-v6' );
-
-		$ips = array();
-		if ( ! is_wp_error( $v4 ) && 200 === wp_remote_retrieve_response_code( $v4 ) ) {
-			$lines = explode( "\n", wp_remote_retrieve_body( $v4 ) );
-			foreach ( $lines as $line ) {
-				$line = trim( $line );
-				if ( ! empty( $line ) ) {
-					$ips[] = $line;
-				}
-			}
-		}
-		if ( ! is_wp_error( $v6 ) && 200 === wp_remote_retrieve_response_code( $v6 ) ) {
-			$lines = explode( "\n", wp_remote_retrieve_body( $v6 ) );
-			foreach ( $lines as $line ) {
-				$line = trim( $line );
-				if ( ! empty( $line ) ) {
-					$ips[] = $line;
-				}
-			}
-		}
-
-		if ( ! empty( $ips ) ) {
-			update_option( 'trackly_cf_proxies', $ips );
-		}
+	public static function daily_cleanup(): void {
+		self::get_repository()->daily_cleanup();
 	}
 }

@@ -6,13 +6,13 @@ Welcome to the **Trackly** workspace. This repository contains the source code f
 
 ## 📂 Repository Structure
 
--   [**`trackly/`**](file:///Users/ridvan/Gravity/trackly/): The main WordPress plugin directory containing all business logic, admin panels, frontend tracking scripts, and translations.
-    -   [`trackly.php`](file:///Users/ridvan/Gravity/trackly/trackly.php): Core plugin loader and autoloader registration.
-    -   [`uninstall.php`](file:///Users/ridvan/Gravity/trackly/uninstall.php): Database option/table cleanup hook.
-    -   [`includes/`](file:///Users/ridvan/Gravity/trackly/includes/): Database schema controller and GA4 Data API client engine.
-    -   [`admin/`](file:///Users/ridvan/Gravity/trackly/admin/): Admin panel control view handlers and dashboard charts scripts.
-    -   [`public/`](file:///Users/ridvan/Gravity/trackly/public/): Lightweight client tracking scripts and glassmorphic frontend overlay modules.
-    -   [`languages/`](file:///Users/ridvan/Gravity/trackly/languages/): Translation translation catalog po/mo files.
+-   [**`trackly/`**](trackly/): The main WordPress plugin directory containing all business logic, admin panels, frontend tracking scripts, and translations.
+    -   [`trackly.php`](trackly/trackly.php): Core plugin loader and autoloader registration.
+    -   [`uninstall.php`](trackly/uninstall.php): Database option/table cleanup hook.
+    -   [`Includes/`](trackly/Includes/): Database schema controller and GA4 Data API client engine.
+    -   [`Admin/`](trackly/Admin/): Admin panel control view handlers and dashboard charts scripts.
+    -   [`Public/`](trackly/Public/): Lightweight client tracking scripts and glassmorphic frontend overlay modules.
+    -   [`languages/`](trackly/languages/): Translation translation catalog po/mo files.
 
 ---
 
@@ -20,8 +20,8 @@ Welcome to the **Trackly** workspace. This repository contains the source code f
 
 Comprehensive installation steps, setup guides, design architecture diagrams, security encryption models, and localization instructions can be found in the official documentation files:
 
-*   🌐 **[Plugin README (English)](file:///Users/ridvan/Gravity/trackly/README.md)**
-*   🇹🇷 **[Plugin README (Türkçe/Turkish)](file:///Users/ridvan/Gravity/trackly/README.tr.md)**
+*   🌐 **[Plugin README (English)](trackly/README.md)**
+*   🇹🇷 **[Plugin README (Türkçe/Turkish)](trackly/README.tr.md)**
 
 ---
 
