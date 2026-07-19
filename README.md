@@ -24,7 +24,7 @@
 
 ## ✨ Overview
 
-**DataMetric** brings the analytics that matter into your WordPress admin, without sacrificing performance or privacy. Standard visitors download only a **~4&nbsp;KB, dependency-free (vanilla JS) tracker**; the heavy dashboard interface is loaded exclusively for logged-in administrators. All GA4 requests are batched, cached, and quota-aware.
+**DataMetric** brings the analytics that matter into your WordPress admin, without sacrificing performance or privacy. Standard visitors download only an **under-5&nbsp;KB, dependency-free (vanilla JS) tracker**; the heavy dashboard interface is loaded exclusively for logged-in administrators. All GA4 requests are batched, cached, and quota-aware. Everything — including the click heatmap — is fully explorable in **Demo Mode** the moment you activate the plugin, with **zero setup**.
 
 > **Note:** GA4 anomaly insights are produced by classic **mean + standard deviation** statistics — not machine learning. Honest math, clearly labeled.
 
@@ -32,11 +32,11 @@
 
 - **GA4 dashboard** — Users, Sessions, Pageviews, Engagement Rate, Bounce Rate, and Avg. Session Duration KPIs, plus a multi-series 7/30-day traffic trend.
 - **Traffic acquisition** — Source/medium (referrer) breakdown with sessions, users, engagement rate, and key events (conversions).
-- **Local click heatmap** — See where visitors click, stored in your own database. No PII; auto-purged after 30 days.
+- **Local click heatmap** — See where visitors click, rendered as an overlay on your own pages. Stored in your own database, no PII, auto-purged after 30 days. In **Demo Mode** it shows a representative sample heatmap so you can try it instantly.
 - **Realtime** — Live active-visitor count with a "last 30 minutes" sparkline.
 - **Audience & geography** — Top landing pages, top countries, top events, device distribution, and a new-vs-returning split.
 - **Visual GA4 event builder** — Define custom GA4 events by clicking elements on the page — no code required.
-- **Demo Mode** — Preview the full interface with realistic mock data, no GA4 connection required.
+- **Demo Mode (zero setup)** — Preview the *entire* plugin — every GA4 report **and** the click heatmap — with realistic mock data, no GA4 connection or click data required. Active by default until you connect a GA4 property.
 - **Privacy-first** — Strict opt-in tracking that integrates with Complianz, Borlabs, CookieLawInfo, and Google Consent Mode v2.
 
 ## 🖼️ Screenshots
@@ -65,10 +65,22 @@
 DataMetric authenticates to the GA4 Data API with a **Service Account** (RS256-signed JWT). Provide credentials via any of:
 
 - The **Settings** screen (JSON is encrypted at rest with AES-256-GCM), or
-- The `METRICPULSE_GA_JSON` constant / environment variable, or
+- The `DATAMETRIC_GA_JSON` constant / environment variable, or
 - A secrets file at `/etc/secrets/datametric.json`.
 
 Step-by-step instructions: **[docs/INSTALL.md](docs/INSTALL.md)**.
+
+## 📖 Usage
+
+**Dashboard (wp-admin).** Open **DataMetric** in the admin menu. In Demo Mode you immediately see mock KPIs, the traffic trend, acquisition, device/country breakdowns, realtime, and more. Connect a GA4 property to switch every report to live data.
+
+**Click heatmap (front-end overlay).** The heatmap renders on your *actual* pages, not inside wp-admin:
+
+1. While logged in as an administrator, visit any page on the front end of your site.
+2. Click the floating **DataMetric** button (bottom-right) to open the glassmorphic panel.
+3. Go to the **Click Heatmap** tab and press **Show Heatmap** — click-density dots are overlaid on the page. In Demo Mode a representative sample heatmap is shown; with a live setup it reflects real recorded clicks for that page.
+
+**GA4 Event Builder.** In the same front-end panel, open the **Event Builder** tab, click **Start Element Selection**, pick any button or link, name your GA4 event, and save. Clicks on that element are then sent to GA4 via `gtag` — no code required.
 
 ## 🧩 Repository Structure
 
@@ -79,7 +91,6 @@ datametric-analytics-heatmaps/   # The WordPress plugin (this is what ships)
 ├── Includes/                # Core, Database, GA4 API client, Repository, Services, Migration
 ├── Admin/                   # Admin dashboard, REST endpoints, ApexCharts scripts & styles
 ├── Frontend/                # Public tracker + glassmorphic on-site overlay
-├── languages/               # i18n catalogs (English + Turkish)
 ├── tests/                   # PHPUnit test suite
 └── readme.txt               # WordPress.org readme
 

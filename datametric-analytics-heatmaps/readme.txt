@@ -1,6 +1,6 @@
 === DataMetric Analytics Dashboard and Heatmaps ===
 Contributors: datametric
-Tags: analytics, ga4, heatmaps, dashboard, visitor-tracking
+Tags: analytics, ga4, heatmaps, dashboard, statistics
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.1
@@ -8,17 +8,24 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A modern Google Analytics 4 dashboard and local click heatmap tracker for WordPress with statistical anomaly insights.
+GDPR-conscious Google Analytics 4 dashboard, local click heatmaps, and statistical anomaly insights — with a dependency-free front-end tracker.
 
 == Description ==
 
-DataMetric Analytics Dashboard and Heatmaps is a GDPR-conscious, high-performance plugin that brings Google Analytics 4 reports and local click heatmaps directly to your WordPress website. The admin dashboard covers the metrics that matter: users, sessions, pageviews, engagement rate and average session duration KPIs; a multi-series traffic trend (7 or 30 days); traffic acquisition by source/medium (including referrers) with engagement and key events; traffic-channel and device breakdowns; top pages and top landing pages; top countries; top events; a new-vs-returning split; and a live "last 30 minutes" active-visitor sparkline. It also includes a local click heatmap, standard-deviation based anomaly insights, and a visual GA4 event builder.
+DataMetric Analytics Dashboard and Heatmaps brings the analytics that matter into your WordPress admin, without sacrificing performance or privacy. Standard visitors download only a lightweight, dependency-free (vanilla JavaScript) tracker under 5 KB, while the heavier dashboard interface is loaded exclusively for logged-in administrators. All Google Analytics 4 (GA4) requests are batched, cached, and quota-aware.
 
-All reports are fetched with batched, cached GA4 Data API calls (respecting the API's 5-reports-per-batch limit) and high-cardinality reports are bounded with ordering and row limits to stay within quota.
+**Zero-setup Demo Mode:** the moment you activate the plugin it runs in Demo Mode, so you can explore the *entire* experience — every GA4 report **and** the click heatmap — with realistic sample data and no configuration at all. Demo Mode stays on until you connect your own GA4 property.
 
-Introduction and full feature overview: https://www.ridvanbilgin.com/2026/07/datametric-wordpress-ga4-analytics-plugin.html
+= Key features =
 
-This plugin is designed for strict performance and security. Standard visitors only download a lightweight, vanilla JavaScript tracker under 5KB (with zero jQuery or external dependencies), while the heavier stats overlay interface is loaded exclusively for logged-in administrators. The plugin bundles its own fonts and libraries and makes no third-party front-end requests.
+* **GA4 dashboard** — Users, sessions, pageviews, engagement rate and average session duration KPIs, plus a multi-series 7 or 30-day traffic trend.
+* **Traffic acquisition** — Source / medium (including referrers) breakdown with sessions, users, engagement and key events (conversions), so you can see which channel brings quality traffic.
+* **Local click heatmap** — See where visitors click, rendered as an overlay on your own pages. Stored in your own database, contains no personal data, and is purged automatically after 30 days.
+* **Realtime** — A live active-visitor count and a "last 30 minutes" sparkline.
+* **Audience & geography** — Top pages, top landing pages, top countries, top events, device distribution, and a new-vs-returning visitor split.
+* **Visual GA4 Event Builder** — Define custom GA4 events by clicking any button or link on the page — no code required.
+* **Statistical anomaly insights** — Traffic and bounce-rate values that deviate significantly from the recent average are flagged using classic mean + standard deviation math (not machine learning).
+* **Privacy-first** — Strict opt-in tracking that integrates with Complianz, Borlabs, CookieLawInfo, and Google Consent Mode v2.
 
 = A note on "insights" =
 
@@ -44,18 +51,39 @@ The local click heatmap and anomaly insights run entirely on your own server and
 
 1. Upload the plugin files to the `/wp-content/plugins/datametric-analytics-heatmaps` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress.
-3. Configure your GA4 Property ID and Service Account JSON credentials under the Settings menu, or leave Demo Mode enabled to preview the interface with mock data.
+3. Open **DataMetric** in the admin menu. It starts in **Demo Mode**, so every report and the click heatmap work immediately with sample data — no setup required.
+4. When you are ready for live data, add your GA4 Property ID and Service Account JSON credentials under the DataMetric Settings screen and turn Demo Mode off.
+
+== Usage ==
+
+**Dashboard (wp-admin):** Open **DataMetric** in the admin menu to view your KPIs, traffic trend, acquisition, device and country breakdowns, realtime activity, and anomaly insights. In Demo Mode these show sample data; once a GA4 property is connected they show live data.
+
+**Click heatmap (front-end):** The heatmap is drawn on your actual pages, not inside wp-admin. While logged in as an administrator, open any page on the front end of your site, click the floating DataMetric button in the bottom-right corner, switch to the **Click Heatmap** tab and press **Show Heatmap**. Click-density dots are overlaid on the page (a sample heatmap in Demo Mode, or your real recorded clicks once live).
+
+**GA4 Event Builder:** In the same front-end panel, open the **Event Builder** tab, click **Start Element Selection**, choose a button or link, give your GA4 event a name and save it. Clicks on that element are then reported to GA4 through your existing gtag setup.
 
 == Frequently Asked Questions ==
 
+= Do I need a Google Analytics account to try it? =
+No. On activation the plugin runs in Demo Mode, which previews every report and the click heatmap with realistic sample data — no GA4 connection required. To display your own live data you need a GA4 property and a Google Cloud Service Account.
+
+= Does the click heatmap show up without any setup? =
+Yes. In Demo Mode the heatmap displays a representative sample so you can experience the feature immediately. Once you connect GA4 and turn Demo Mode off, the heatmap shows the real clicks recorded for each page.
+
+= Where does the heatmap appear? =
+On the front end of your site, as an overlay on the real page — not inside wp-admin. Open the floating DataMetric panel while logged in as an administrator, go to the Click Heatmap tab and press Show Heatmap.
+
 = Does this plugin support IPv6? =
-Yes! The Cloudflare and reverse proxy whitelists used for accurate client IP detection support both IPv4 and IPv6 subnet ranges natively. These ranges are bundled with the plugin; no external request is made to obtain them.
+Yes. The Cloudflare and reverse-proxy ranges used for accurate client IP detection support both IPv4 and IPv6 natively. These ranges are bundled with the plugin; no external request is made to obtain them.
 
 = Is the click tracking GDPR-compliant? =
 The click telemetry contains no personal data (no IP address, no user identifiers) — only the page path, the clicked element, and normalized click coordinates. It is stored in your own local database and automatically deleted after 30 days. By default the tracker starts in strict opt-in mode and waits for consent from a supported consent plugin (Complianz, Borlabs, CookieLawInfo, or Google Consent Mode v2); you can relax this in Settings.
 
+= Will it slow down my site? =
+The goal is the opposite. Visitors download only an under-5 KB dependency-free script; the heavy dashboard assets load solely for logged-in administrators, and no external front-end requests (such as Google Fonts) are made.
+
 = What happens to my data when I uninstall? =
-By default nothing is deleted, so you can safely reinstall. If you enable "Delete all data on uninstall" in Settings, deleting the plugin will permanently drop the click table and remove all options.
+By default nothing is deleted, so you can safely reinstall. If you enable "Delete all data on uninstall" in Settings, deleting the plugin will permanently drop the click table and remove all options. Multisite installs are handled per-site.
 
 = Do I need Google Analytics installed for the Event Builder? =
 Yes. The Event Builder maps clicks to GA4 events via gtag. Your site must already load the GA4 / gtag snippet (for example via Site Kit or a manual tag) for these events to be sent.

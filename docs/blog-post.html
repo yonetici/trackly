@@ -1,0 +1,330 @@
+<!--
+  DataMetric Analytics Dashboard and Heatmaps — blog post (Bootstrap 5 markup for Blogger).
+  NOTE: replace the hero image below with the rebranded DataMetric banner
+  (assets/banner-772x250.png) — the old Blogger-hosted image still shows the previous brand.
+-->
+<div class="container my-4">
+
+  <p class="lead">
+    <strong>DataMetric Analytics Dashboard and Heatmaps</strong> is an open-source, GDPR-conscious analytics
+    plugin that brings Google Analytics 4 (GA4) reports, local click heatmaps, and statistical anomaly insights
+    straight into your WordPress dashboard. Visitors load a <strong>dependency-free tracker under 5&nbsp;KB</strong>,
+    while the heavier interface is served only to logged-in administrators.
+  </p>
+
+  <div class="d-flex flex-wrap gap-2 my-3">
+    <span class="badge text-bg-primary">Requires WordPress 6.0+</span>
+    <span class="badge text-bg-success">Tested up to WordPress 7.0</span>
+    <span class="badge text-bg-secondary">PHP 8.1+</span>
+    <span class="badge text-bg-dark">GPLv2+</span>
+    <span class="badge text-bg-info">Open Source</span>
+    <span class="badge text-bg-warning">GA4 Data API</span>
+  </div>
+
+  <div class="alert alert-primary mt-3" role="alert">
+    <h3 class="alert-heading h5">⚡ Try everything in seconds — zero setup</h3>
+    <p class="mb-0">
+      The moment you activate the plugin it runs in <strong>Demo Mode</strong>. Every GA4 report
+      <strong>and</strong> the click heatmap are populated with realistic sample data, so you can explore the
+      full experience without connecting GA4 or recording a single click. Demo Mode stays on until you plug in
+      your own GA4 property.
+    </p>
+  </div>
+
+  <hr class="my-4" />
+
+  <h2 class="h3 fw-bold">Why I built it</h2>
+  <div class="separator" style="clear: both; text-align: center;"><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjyJLzp46vDX-Hbhbl9UImu1I_5pNr5jBk6P0EpYpDWmbkgyHmgR0m8UEnrbLaeJQPWyZSac9Q_9I0ilug5URVOYyFOsH-22QRTBcHcuspvoaio8GXZUj9H9xPIwoqqwkFzMhCHi9BP9tMVKka_vMNPbt5w8dsGG32AYGg81_4KsRVhpS4Jki7X5GyZgc4/s2000/image-1784321813873.jpg" style="margin-left: 1em; margin-right: 1em;"><img alt="DataMetric: A GDPR-Conscious, Dependency-Free GA4 Dashboard &amp; Heatmap Plugin for WordPress" border="0" data-original-height="1050" data-original-width="2000" height="336" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjyJLzp46vDX-Hbhbl9UImu1I_5pNr5jBk6P0EpYpDWmbkgyHmgR0m8UEnrbLaeJQPWyZSac9Q_9I0ilug5URVOYyFOsH-22QRTBcHcuspvoaio8GXZUj9H9xPIwoqqwkFzMhCHi9BP9tMVKka_vMNPbt5w8dsGG32AYGg81_4KsRVhpS4Jki7X5GyZgc4/w640-h336/image-1784321813873.jpg" title="DataMetric: A GDPR-Conscious, Dependency-Free GA4 Dashboard &amp; Heatmap Plugin for WordPress" width="640" /></a></div><p>GA4 is powerful, but its interface overwhelms most WordPress owners — and the answers to everyday
+    questions ("which page performs best, where does my traffic come from, where do visitors click?")
+    are always a few screens away. So I built a plugin that gathers the answers I actually need in
+    <em>one panel</em>, without sacrificing performance or privacy: <strong>DataMetric</strong>.
+  </p>
+
+  <h2 class="h3 fw-bold mt-5">Key features</h2>
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mt-1">
+
+    <div class="col">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">📊 GA4 Dashboard</h3>
+          <p class="card-text text-body-secondary">
+            Users, sessions, pageviews, engagement rate and average session duration KPIs, plus a
+            multi-series 7/30-day traffic trend.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">🔗 Traffic Acquisition</h3>
+          <p class="card-text text-body-secondary">
+            Source/medium (referrer) breakdown with sessions, users, engagement and key events
+            (conversions) — so you can see which channel brings quality traffic.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">🌡️ Local Click Heatmap</h3>
+          <p class="card-text text-body-secondary">
+            See where visitors click, overlaid on your real pages and stored in your own database.
+            Contains no PII and is purged automatically after 30 days. Comes with a sample heatmap in
+            Demo Mode so you can try it instantly.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">🟢 Realtime</h3>
+          <p class="card-text text-body-secondary">
+            Track your site's pulse with a live active-visitor count and a "last 30 minutes"
+            sparkline.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">🧭 Audience &amp; Geography</h3>
+          <p class="card-text text-body-secondary">
+            Top landing pages, top countries, top events, device distribution, and a
+            new-vs-returning visitor split.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">🎯 GA4 Event Builder</h3>
+          <p class="card-text text-body-secondary">
+            Define custom GA4 events without writing code by visually selecting buttons or links
+            on the page.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="alert alert-success mt-5" role="alert">
+    <h3 class="alert-heading h5">🔒 Privacy first</h3>
+    <p class="mb-0">
+      Click telemetry contains <strong>no IP address or personal identifiers</strong> — only the page
+      path, the clicked element, and normalized coordinates. The tracker starts in <strong>strict
+      opt-in mode</strong> by default and waits until consent is granted via Complianz, Borlabs,
+      CookieLawInfo, or Google Consent Mode v2.
+    </p>
+  </div>
+
+  <h2 class="h3 fw-bold mt-5">Installation &amp; usage</h2>
+  <div class="row g-4 mt-1">
+    <div class="col-md-6">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">📦 Install in three steps</h3>
+          <ol class="mb-0 text-body-secondary">
+            <li>Upload the plugin ZIP under <strong>Plugins → Add New → Upload Plugin</strong> and activate it.</li>
+            <li>Open <strong>DataMetric</strong> in the admin menu — it starts in Demo Mode with sample data.</li>
+            <li>When ready for live data, add your GA4 Property ID and Service Account JSON under Settings and turn Demo Mode off.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5">🌡️ See the heatmap</h3>
+          <p class="text-body-secondary mb-0">
+            The heatmap renders on your <strong>real pages</strong>, not inside wp-admin. While logged in as an
+            administrator, open any front-end page, click the floating <strong>DataMetric</strong> button
+            (bottom-right), switch to the <strong>Click Heatmap</strong> tab and press <strong>Show Heatmap</strong>.
+            You get a sample heatmap in Demo Mode, or your real recorded clicks once live.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="h3 fw-bold mt-5">Under the hood (for developers)</h2>
+  <div class="accordion mt-3" id="mpTech">
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="t1h">
+        <button aria-controls="t1" aria-expanded="true" class="accordion-button" data-bs-target="#t1" data-bs-toggle="collapse" type="button">
+          GA4 Data API integration &amp; quota management
+        </button>
+      </h3>
+      <div aria-labelledby="t1h" class="accordion-collapse collapse show" data-bs-parent="#mpTech" id="t1">
+        <div class="accordion-body">
+          Authentication uses an <code>RS256</code>-signed JWT generated from the Service Account JSON.
+          To respect GA4's <strong>5-reports-per-batch</strong> limit, reports are split into batches;
+          high-cardinality dimensions are bounded with <code>orderBys</code> + <code>limit</code>, results
+          are cached for 10&nbsp;minutes, and generation-based cache versioning ensures correct
+          invalidation even behind Redis/Memcached.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="t2h">
+        <button aria-controls="t2" aria-expanded="false" class="accordion-button collapsed" data-bs-target="#t2" data-bs-toggle="collapse" type="button">
+          Performance-focused front end
+        </button>
+      </h3>
+      <div aria-labelledby="t2h" class="accordion-collapse collapse" data-bs-parent="#mpTech" id="t2">
+        <div class="accordion-body">
+          Visitors download only an <strong>under-5&nbsp;KB dependency-free (vanilla JS)</strong> tracker, loaded in
+          the footer, which batches clicks into a single request. The heavy dashboard (ApexCharts) and
+          interface assets load <strong>for authorized users only</strong>. Assets are versioned with
+          <code>filemtime</code> for safe cache-busting, and fonts are bundled locally — there are
+          <strong>no remote Google Fonts requests</strong>, and no other external front-end calls.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="t3h">
+        <button aria-controls="t3" aria-expanded="false" class="accordion-button collapsed" data-bs-target="#t3" data-bs-toggle="collapse" type="button">
+          Security &amp; data integrity
+        </button>
+      </h3>
+      <div aria-labelledby="t3h" class="accordion-collapse collapse" data-bs-parent="#mpTech" id="t3">
+        <div class="accordion-body">
+          Service Account credentials are encrypted at rest with <strong>AES-256-GCM</strong>. REST
+          endpoints are protected by capability checks and nonces; the anonymous click endpoint is
+          protected with a cache-safe <strong>same-origin check + rate limiting + bot filter</strong>.
+          Scheduled cleanup uses a genuine atomic lock based on <code>add_option()</code>. Cloudflare /
+          reverse-proxy IP ranges are <strong>bundled statically</strong> for accurate client-IP detection —
+          the plugin never phones home to fetch them.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="t4h">
+        <button aria-controls="t4" aria-expanded="false" class="accordion-button collapsed" data-bs-target="#t4" data-bs-toggle="collapse" type="button">
+          Visualization &amp; code quality
+        </button>
+      </h3>
+      <div aria-labelledby="t4h" class="accordion-collapse collapse" data-bs-parent="#mpTech" id="t4">
+        <div class="accordion-body">
+          Charts are rendered with a locally bundled <strong>ApexCharts 4.7.0</strong> (no remote CDN). The
+          codebase ships with PSR-4 autoloading, a layered service/repository structure, and a PHPUnit
+          test suite; it supports multisite-aware uninstall and opt-in data deletion. Insights are based
+          on classic <strong>mean + standard deviation</strong> statistics — not "AI", just honest math.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <h2 class="h3 fw-bold mt-5">Technical summary</h2>
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <tbody>
+        <tr><th class="w-25" scope="row">Platform</th><td>WordPress 6.0+ (tested up to 7.0) / PHP 8.1+</td></tr>
+        <tr><th scope="row">License</th><td>GPLv2 or later (open source)</td></tr>
+        <tr><th scope="row">Data source</th><td>Google Analytics 4 — Data API (Service Account)</td></tr>
+        <tr><th scope="row">Front-end tracker</th><td>Under 5 KB vanilla JS, no jQuery, consent-aware</td></tr>
+        <tr><th scope="row">Heatmap</th><td>Local table, no PII, auto-purged after 30 days; sample data in Demo Mode</td></tr>
+        <tr><th scope="row">Charts</th><td>ApexCharts 4.7.0 (bundled locally)</td></tr>
+        <tr><th scope="row">Internationalization</th><td>Fully i18n-ready; community translations via translate.wordpress.org</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="h3 fw-bold mt-5">Who is it for?</h2>
+  <ul class="list-group list-group-flush mb-4">
+    <li class="list-group-item"><strong>Site owners</strong> who want core metrics at a glance without GA4's complexity.</li>
+    <li class="list-group-item"><strong>Agencies and freelancers</strong> looking for lightweight, privacy-friendly analytics to embed in client sites.</li>
+    <li class="list-group-item"><strong>Content and SEO teams</strong> measuring visitor behavior — heatmaps, landing pages, and channel quality.</li>
+  </ul>
+
+  <h2 class="h3 fw-bold mt-5">Frequently asked questions</h2>
+  <div class="accordion mt-3" id="mpFaq">
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="f1h">
+        <button aria-controls="f1" aria-expanded="false" class="accordion-button collapsed" data-bs-target="#f1" data-bs-toggle="collapse" type="button">
+          Is DataMetric free, and where can I get it?
+        </button>
+      </h3>
+      <div aria-labelledby="f1h" class="accordion-collapse collapse" data-bs-parent="#mpFaq" id="f1">
+        <div class="accordion-body">
+          Yes — it is fully open source under GPLv2+. You can get the source code on GitHub; submission
+          to the WordPress.org plugin directory is in progress.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="f2h">
+        <button aria-controls="f2" aria-expanded="false" class="accordion-button collapsed" data-bs-target="#f2" data-bs-toggle="collapse" type="button">
+          Do I need a Google Analytics account to try it?
+        </button>
+      </h3>
+      <div aria-labelledby="f2h" class="accordion-collapse collapse" data-bs-parent="#mpFaq" id="f2">
+        <div class="accordion-body">
+          No. On activation the plugin runs in <strong>Demo Mode</strong>, which previews every report
+          <strong>and</strong> the click heatmap with realistic sample data — no connection required. To
+          display your own live data you need a GA4 property and a Service Account.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="f3h">
+        <button aria-controls="f3" aria-expanded="false" class="accordion-button collapsed" data-bs-target="#f3" data-bs-toggle="collapse" type="button">
+          Will it slow down my site?
+        </button>
+      </h3>
+      <div aria-labelledby="f3h" class="accordion-collapse collapse" data-bs-parent="#mpFaq" id="f3">
+        <div class="accordion-body">
+          The goal is the opposite. Visitors download only an under-5 KB dependency-free script; heavy dashboard
+          assets load solely for logged-in administrators, and no external requests (such as Google Fonts) are made.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="f4h">
+        <button aria-controls="f4" aria-expanded="false" class="accordion-button collapsed" data-bs-target="#f4" data-bs-toggle="collapse" type="button">
+          Is it GDPR-compliant?
+        </button>
+      </h3>
+      <div aria-labelledby="f4h" class="accordion-collapse collapse" data-bs-parent="#mpFaq" id="f4">
+        <div class="accordion-body">
+          Click data contains no personal information and is stored on your own server. The tracker
+          starts in opt-in mode by default and integrates with popular cookie-consent plugins.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card border-0 shadow-sm bg-body-tertiary mt-5">
+    <div class="card-body text-center p-4 p-md-5">
+      <h2 class="h4 fw-bold">Explore the source, contribute</h2>
+      <p class="text-body-secondary mb-4">DataMetric is open source. Star it, report issues, or contribute.</p>
+      <a class="btn btn-primary btn-lg" href="https://github.com/yonetici/metricpulse" rel="noopener noreferrer" target="_blank">View on GitHub</a>
+    </div>
+  </div>
+
+  <p class="text-body-secondary small mt-4 mb-0">
+    DataMetric Analytics Dashboard and Heatmaps is an independent open-source project developed by Rıdvan Bilgin.
+    Google Analytics and GA4 are trademarks of Google LLC; this project is not endorsed by or affiliated with Google.
+  </p>
+
+</div>

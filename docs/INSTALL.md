@@ -46,6 +46,6 @@ To fetch reporting statistics securely, DataMetric Analytics Dashboard and Heatm
 #### Option B: wp-config.php (Enterprise Recommended)
 - For maximum security and lock-down, paste the JSON content directly as a constant inside your `wp-config.php` file:
 ```php
-define( 'METRICPULSE_GA_JSON', '{"type": "service_account", "project_id": ...}' );
+define( 'DATAMETRIC_GA_JSON', '{"type": "service_account", "project_id": ...}' );
 ```
 - When this constant is active, DataMetric Analytics Dashboard and Heatmaps automatically bypasses database credential lookups.

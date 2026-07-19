@@ -9,7 +9,7 @@ If the connection indicator displays "Not Connected" even after saving settings:
 
 1. **Verify Property ID**: Ensure you entered a numeric **Property ID** (typically 9 digits, e.g., `389102830`), not the Tracking ID (e.g., `G-XXXXXX` or `UA-XXXXXX`).
 2. **Missing Private Key**: Verify that the Google Service Account JSON you pasted contains a valid `"private_key"` block.
-3. **wp-config Constant Active**: If `defined( 'METRICPULSE_GA_JSON' )` is active, settings fields inside WordPress admin are ignored. Check your `wp-config.php` file structure.
+3. **wp-config Constant Active**: If `defined( 'DATAMETRIC_GA_JSON' )` is active, settings fields inside WordPress admin are ignored. Check your `wp-config.php` file structure.
 
 ---
 
