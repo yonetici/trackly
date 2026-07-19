@@ -1,3 +1,6 @@
 
 # Personal Claude Code overrides (local only)
 .claude/settings.local.json
+
+# JetBrains IDE
+.idea/
