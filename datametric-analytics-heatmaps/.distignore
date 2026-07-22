@@ -1,0 +1,13 @@
+# Files/folders that must NOT ship to the WordPress.org SVN trunk.
+# (Assets, docs, CI and build tooling live outside this folder and are excluded automatically.)
+/tests
+/node_modules
+/vendor
+phpunit.xml
+composer.json
+composer.lock
+package.json
+package-lock.json
+.distignore
+.phpunit.result.cache
+.DS_Store
