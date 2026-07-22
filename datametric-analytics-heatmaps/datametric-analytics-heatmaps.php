@@ -3,7 +3,7 @@
  * Plugin Name:       DataMetric Analytics Dashboard and Heatmaps
  * Plugin URI:        https://www.ridvanbilgin.com/2026/07/ga4-dashboard-heatmap-plugin-wordpress.html
  * Description:       A modern Google Analytics 4 dashboard and page-level statistics client for WordPress with local click heatmaps and statistical anomaly insights.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Rıdvan Bilgin
@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'DATAMETRIC_VERSION', '1.0.2' );
+define( 'DATAMETRIC_VERSION', '1.0.3' );
 define( 'DATAMETRIC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DATAMETRIC_URL', plugin_dir_url( __FILE__ ) );
 
