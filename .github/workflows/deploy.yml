@@ -16,14 +16,32 @@ jobs:
         uses: actions/checkout@v4
 
       # Single source of truth for the SVN tag: the "Stable tag" line in readme.txt.
-      # This keeps the SVN tag (e.g. 1.0.0) in sync with what WordPress.org treats as stable,
-      # regardless of how the workflow was triggered (release or manual dispatch).
       - name: Resolve version from readme.txt
         id: ver
         run: |
           VERSION="$(grep -m1 '^Stable tag:' datametric-analytics-heatmaps/readme.txt | sed 's/^Stable tag:[[:space:]]*//' | tr -d '[:space:]')"
           echo "Resolved version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Build a clean copy containing ONLY the files that should ship to WordPress.org.
+      # This is deterministic and independent of how the deploy action handles .distignore
+      # for a custom BUILD_DIR.
+      - name: Prepare clean build
+        run: |
+          rsync -a --delete \
+            --exclude='tests/' \
+            --exclude='phpunit.xml' \
+            --exclude='composer.json' \
+            --exclude='composer.lock' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='node_modules/' \
+            --exclude='vendor/' \
+            --exclude='.distignore' \
+            --exclude='.phpunit.result.cache' \
+            --exclude='.DS_Store' \
+            datametric-analytics-heatmaps/ build/
+          echo "Files staged for SVN trunk:" && find build -type f | sort
 
       - name: WordPress.org Plugin Deploy
         uses: 10up/action-wordpress-plugin-deploy@stable
@@ -33,4 +51,4 @@ jobs:
           SLUG: datametric-analytics-heatmaps
           VERSION: ${{ steps.ver.outputs.version }}
           ASSETS_DIR: assets
-          BUILD_DIR: datametric-analytics-heatmaps
+          BUILD_DIR: build
